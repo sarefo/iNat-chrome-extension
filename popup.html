@@ -58,6 +58,39 @@
       font-size: 18px;
       padding: 12px 8px;
     }
+    .username-container {
+      margin-top: 15px;
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+    .username-display {
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 15px;
+      transition: background-color 0.2s;
+    }
+    .username-display:hover {
+      background-color: #f0f0f0;
+    }
+    .username-input {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 15px;
+      padding: 5px 10px;
+      font-size: 12px;
+      text-align: center;
+      width: 120px;
+    }
+    .username-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+      background: white;
+    }
   </style>
 </head>
 <body>
@@ -72,6 +105,10 @@
   </div>
   <button id="openUrl" class="url-button" title="Open page showing observations without annotations">Obs w/o annotations</button>
   <div id="status" class="status"></div>
+  <div class="username-container">
+    <button id="username-display" class="username-display" title="Click to edit username">portioid</button>
+    <input id="username-input" class="username-input" type="text" style="display: none;" placeholder="Enter username">
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

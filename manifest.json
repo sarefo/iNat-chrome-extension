@@ -4,7 +4,8 @@
   "version": "1.0",
   "description": "Auto-fills common iNaturalist observation fields",
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   "action": {
     "default_popup": "popup.html",

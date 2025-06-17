@@ -6,6 +6,22 @@ document.addEventListener('DOMContentLoaded', function() {
   const fillButtonAgeUnknown = document.getElementById('fillFieldsAgeUnknown');
   const openUrlButton = document.getElementById('openUrl');
   const statusDiv = document.getElementById('status');
+  const usernameDisplay = document.getElementById('username-display');
+  const usernameInput = document.getElementById('username-input');
+  
+  let currentUsername = 'portioid';
+  
+  if (!usernameDisplay || !usernameInput) {
+    console.error('Username elements not found');
+    return;
+  }
+  
+  chrome.storage.sync.get(['username'], function(result) {
+    if (result.username) {
+      currentUsername = result.username;
+      usernameDisplay.textContent = currentUsername;
+    }
+  });
 
   fillButtonAlive.addEventListener('click', function() {
     statusDiv.textContent = 'Filling fields...';
@@ -104,7 +120,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
   openUrlButton.addEventListener('click', function() {
     chrome.tabs.create({
-      url: 'https://www.inaturalist.org/observations?page=3&taxon_id=47120&user_id=portioid&without_term_id=17'
+      url: `https://www.inaturalist.org/observations?page=3&taxon_id=47120&user_id=${currentUsername}&without_term_id=17`
     });
+  });
+
+  usernameDisplay.addEventListener('click', function() {
+    console.log('Username clicked');
+    usernameDisplay.style.display = 'none';
+    usernameInput.style.display = 'block';
+    usernameInput.value = currentUsername;
+    usernameInput.focus();
+    usernameInput.select();
+  });
+
+  function saveUsername() {
+    const newUsername = usernameInput.value.trim();
+    if (newUsername) {
+      currentUsername = newUsername;
+      usernameDisplay.textContent = currentUsername;
+      chrome.storage.sync.set({username: currentUsername});
+    }
+    usernameInput.style.display = 'none';
+    usernameDisplay.style.display = 'block';
+  }
+
+  usernameInput.addEventListener('blur', saveUsername);
+  usernameInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      saveUsername();
+    }
+    if (e.key === 'Escape') {
+      usernameInput.style.display = 'none';
+      usernameDisplay.style.display = 'block';
+    }
   });
 });
