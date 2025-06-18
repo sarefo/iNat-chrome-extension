@@ -5,8 +5,12 @@
   "description": "Auto-fills common iNaturalist observation fields",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "tabs"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Fill iNaturalist Fields",
@@ -16,6 +20,12 @@
     {
       "matches": ["*://*.inaturalist.org/*"],
       "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content.js"],
+      "matches": ["*://*.inaturalist.org/*"]
     }
   ]
 }
