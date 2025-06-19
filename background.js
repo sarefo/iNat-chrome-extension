@@ -1,8 +1,8 @@
 // Background script for handling bulk observation processing
 
-// Staggered processing configuration
-const MAX_CONCURRENT_TABS = 6; // Reduced for better stability
-const STAGGER_DELAY = 200; // 200ms delay between starting each tab
+// Staggered processing configuration - optimized for slow connections
+const MAX_CONCURRENT_TABS = 4; // Further reduced for slow connection stability
+const STAGGER_DELAY = 400; // Increased delay between starting each tab for slow connections
 let processingTabs = new Map(); // Track active processing tabs
 let isProcessingBulk = false;
 
@@ -61,9 +61,9 @@ async function processBulkObservationsStaggered(observations, mode = 'adult-aliv
   try {
     // Process all observations sequentially but with concurrent execution
     for (let i = 0; i < observations.length; i++) {
-      // Wait if we've hit the concurrent limit
+      // Wait if we've hit the concurrent limit - adaptive waiting for slow connections
       while (activeTabs >= MAX_CONCURRENT_TABS) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 200));
       }
       
       const observationId = observations[i];
@@ -245,19 +245,19 @@ async function processObservationInExistingTab(tabId, observationId, mode = 'adu
                   verified: response.verified,
                   tabId
                 });
-              }, 3000); // Further increased wait time to ensure all fields are filled properly
+              }, 4000); // Extended wait time for slow connections to ensure all fields are filled
             });
-          }, 2000); // Further increased initial wait time for page to fully load
+          }, 3000); // Extended wait time for slow connections
         }
       };
       
       chrome.tabs.onUpdated.addListener(tabLoadListener);
       
-      // Timeout after 20 seconds (increased)
+      // Extended timeout for slow connections
       setTimeout(() => {
         chrome.tabs.onUpdated.removeListener(tabLoadListener);
         reject(new Error(`Timeout processing observation ${observationId} in tab ${tabId}`));
-      }, 20000);
+      }, 30000);
     });
   });
 }

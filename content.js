@@ -14,118 +14,184 @@ function fillObservationFields(mode = 'adult-alive') {
   
   // Wait for page to be fully loaded
   setTimeout(() => {
-    // Function to click dropdown and select option
-    function selectDropdownOption(dropdown, optionText) {
+    // Function to click dropdown and select option with retry logic
+    function selectDropdownOption(dropdown, optionText, maxRetries = 3) {
       return new Promise((resolve) => {
-        try {
-          console.log(`Attempting to select option: "${optionText}"`);
-          
-          // Click the dropdown to open it
-          dropdown.click();
-          
-          // Wait a moment for dropdown to open, then find and click the option
-          setTimeout(() => {
-            const dropdownMenu = dropdown.nextElementSibling;
-            if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
-              const options = dropdownMenu.querySelectorAll('a[role="menuitem"]');
-              console.log(`Found ${options.length} dropdown options`);
-              
-              for (const option of options) {
-                const optionInnerText = option.textContent.trim().toLowerCase();
-                console.log(`Checking option: "${optionInnerText}"`);
+        let retryCount = 0;
+        
+        function attemptSelection() {
+          try {
+            console.log(`Attempt ${retryCount + 1}/${maxRetries + 1}: Selecting option "${optionText}"`);
+            
+            // Click the dropdown to open it
+            dropdown.click();
+            
+            // Adaptive wait time based on connection speed
+            const baseDelay = 200;
+            const adaptiveDelay = baseDelay + (retryCount * 100); // Increase delay on retries
+            
+            setTimeout(() => {
+              const dropdownMenu = dropdown.nextElementSibling;
+              if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                const options = dropdownMenu.querySelectorAll('a[role="menuitem"]');
+                console.log(`Found ${options.length} dropdown options`);
                 
-                // More flexible matching for "Alive" option
-                if (optionText.toLowerCase() === 'alive' && 
-                    (optionInnerText === 'alive' || optionInnerText.includes('alive'))) {
-                  console.log(`Clicking "Alive" option: "${optionInnerText}"`);
-                  option.click();
-                  fieldsFound++;
-                  resolve(true);
+                if (options.length === 0 && retryCount < maxRetries) {
+                  console.log('No options found, retrying...');
+                  retryCount++;
+                  setTimeout(attemptSelection, 500 + (retryCount * 200));
                   return;
                 }
-                // More flexible matching for "Adult" option
-                else if (optionText.toLowerCase() === 'adult' && 
-                         (optionInnerText === 'adult' || optionInnerText.includes('adult'))) {
-                  console.log(`Clicking "Adult" option: "${optionInnerText}"`);
-                  option.click();
-                  fieldsFound++;
-                  resolve(true);
-                  return;
-                }
-                // More flexible matching for "Organism" option
-                else if (optionText.toLowerCase() === 'organism' && 
-                         (optionInnerText === 'organism' || optionInnerText.includes('organism'))) {
-                  console.log(`Clicking "Organism" option: "${optionInnerText}"`);
-                  option.click();
-                  fieldsFound++;
-                  resolve(true);
-                  return;
-                }
-                // Exact match fallback
-                else if (optionInnerText === optionText.toLowerCase()) {
-                  console.log(`Clicking exact match option: "${optionInnerText}"`);
-                  option.click();
-                  fieldsFound++;
-                  resolve(true);
-                  return;
-                }
-              }
-              
-              console.log(`No matching option found for: "${optionText}"`);
-              resolve(false);
-            } else {
-              console.log('Dropdown menu not found or not open');
-              resolve(false);
-            }
-          }, 150); // Increased wait time for dropdown to open
-        } catch (error) {
-          console.error('Error selecting dropdown option:', error);
-          resolve(false);
-        }
-      });
-    }
-
-    // Function to find and select the best juvenile life stage
-    function selectJuvenileLifeStage(dropdown) {
-      return new Promise((resolve) => {
-        try {
-          console.log('Attempting to select juvenile life stage');
-          dropdown.click();
-          
-          setTimeout(() => {
-            const dropdownMenu = dropdown.nextElementSibling;
-            if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
-              const options = dropdownMenu.querySelectorAll('a[role="menuitem"]');
-              console.log(`Found ${options.length} options for juvenile life stage`);
-              
-              // Priority order for juvenile life stages
-              const juvenileOptions = ['larva', 'nymph', 'juvenile'];
-              
-              for (const juvenileType of juvenileOptions) {
+                
                 for (const option of options) {
-                  const optionText = option.textContent.trim().toLowerCase();
-                  console.log(`Checking juvenile option: "${optionText}"`);
-                  if (optionText === juvenileType || optionText.includes(juvenileType)) {
-                    console.log(`Clicking juvenile option: "${optionText}"`);
+                  const optionInnerText = option.textContent.trim().toLowerCase();
+                  console.log(`Checking option: "${optionInnerText}"`);
+                  
+                  // More flexible matching for "Alive" option
+                  if (optionText.toLowerCase() === 'alive' && 
+                      (optionInnerText === 'alive' || optionInnerText.includes('alive'))) {
+                    console.log(`Clicking "Alive" option: "${optionInnerText}"`);
+                    option.click();
+                    fieldsFound++;
+                    resolve(true);
+                    return;
+                  }
+                  // More flexible matching for "Adult" option
+                  else if (optionText.toLowerCase() === 'adult' && 
+                           (optionInnerText === 'adult' || optionInnerText.includes('adult'))) {
+                    console.log(`Clicking "Adult" option: "${optionInnerText}"`);
+                    option.click();
+                    fieldsFound++;
+                    resolve(true);
+                    return;
+                  }
+                  // More flexible matching for "Organism" option
+                  else if (optionText.toLowerCase() === 'organism' && 
+                           (optionInnerText === 'organism' || optionInnerText.includes('organism'))) {
+                    console.log(`Clicking "Organism" option: "${optionInnerText}"`);
+                    option.click();
+                    fieldsFound++;
+                    resolve(true);
+                    return;
+                  }
+                  // Exact match fallback
+                  else if (optionInnerText === optionText.toLowerCase()) {
+                    console.log(`Clicking exact match option: "${optionInnerText}"`);
                     option.click();
                     fieldsFound++;
                     resolve(true);
                     return;
                   }
                 }
+                
+                console.log(`No matching option found for: "${optionText}"`);
+                if (retryCount < maxRetries) {
+                  console.log(`Retrying option selection for: "${optionText}"`);
+                  retryCount++;
+                  setTimeout(attemptSelection, 500 + (retryCount * 200));
+                } else {
+                  resolve(false);
+                }
+              } else {
+                console.log('Dropdown menu not found or not open');
+                if (retryCount < maxRetries) {
+                  console.log('Retrying dropdown open...');
+                  retryCount++;
+                  setTimeout(attemptSelection, 500 + (retryCount * 200));
+                } else {
+                  resolve(false);
+                }
               }
-              
-              console.log('No matching juvenile life stage found');
-              resolve(false);
+            }, adaptiveDelay);
+          } catch (error) {
+            console.error('Error selecting dropdown option:', error);
+            if (retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(attemptSelection, 1000 + (retryCount * 500));
             } else {
-              console.log('Juvenile dropdown menu not found or not open');
               resolve(false);
             }
-          }, 150);
-        } catch (error) {
-          console.error('Error selecting juvenile life stage:', error);
-          resolve(false);
+          }
         }
+        
+        attemptSelection();
+      });
+    }
+
+    // Function to find and select the best juvenile life stage with retry
+    function selectJuvenileLifeStage(dropdown, maxRetries = 3) {
+      return new Promise((resolve) => {
+        let retryCount = 0;
+        
+        function attemptJuvenileSelection() {
+          try {
+            console.log(`Attempt ${retryCount + 1}/${maxRetries + 1}: Selecting juvenile life stage`);
+            dropdown.click();
+            
+            const baseDelay = 200;
+            const adaptiveDelay = baseDelay + (retryCount * 100);
+            
+            setTimeout(() => {
+              const dropdownMenu = dropdown.nextElementSibling;
+              if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                const options = dropdownMenu.querySelectorAll('a[role="menuitem"]');
+                console.log(`Found ${options.length} options for juvenile life stage`);
+                
+                if (options.length === 0 && retryCount < maxRetries) {
+                  console.log('No juvenile options found, retrying...');
+                  retryCount++;
+                  setTimeout(attemptJuvenileSelection, 500 + (retryCount * 200));
+                  return;
+                }
+                
+                // Priority order for juvenile life stages
+                const juvenileOptions = ['larva', 'nymph', 'juvenile'];
+                
+                for (const juvenileType of juvenileOptions) {
+                  for (const option of options) {
+                    const optionText = option.textContent.trim().toLowerCase();
+                    console.log(`Checking juvenile option: "${optionText}"`);
+                    if (optionText === juvenileType || optionText.includes(juvenileType)) {
+                      console.log(`Clicking juvenile option: "${optionText}"`);
+                      option.click();
+                      fieldsFound++;
+                      resolve(true);
+                      return;
+                    }
+                  }
+                }
+                
+                console.log('No matching juvenile life stage found');
+                if (retryCount < maxRetries) {
+                  console.log('Retrying juvenile selection...');
+                  retryCount++;
+                  setTimeout(attemptJuvenileSelection, 500 + (retryCount * 200));
+                } else {
+                  resolve(false);
+                }
+              } else {
+                console.log('Juvenile dropdown menu not found or not open');
+                if (retryCount < maxRetries) {
+                  console.log('Retrying juvenile dropdown open...');
+                  retryCount++;
+                  setTimeout(attemptJuvenileSelection, 500 + (retryCount * 200));
+                } else {
+                  resolve(false);
+                }
+              }
+            }, adaptiveDelay);
+          } catch (error) {
+            console.error('Error selecting juvenile life stage:', error);
+            if (retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(attemptJuvenileSelection, 1000 + (retryCount * 500));
+            } else {
+              resolve(false);
+            }
+          }
+        }
+        
+        attemptJuvenileSelection();
       });
     }
     
@@ -157,23 +223,23 @@ function fillObservationFields(mode = 'adult-alive') {
         if (attributeTitle.includes('Alive or Dead')) {
           const aliveOrDead = (mode === 'adult-dead' || mode === 'juvenile-dead') ? 'Dead' : 'Alive';
           await selectDropdownOption(dropdown, aliveOrDead);
-          // Add delay between selections
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Adaptive delay between selections for slow connections
+          await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
         } else if (attributeTitle.includes('Evidence of Presence')) {
           await selectDropdownOption(dropdown, 'Organism');
-          // Add delay between selections
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Adaptive delay between selections for slow connections
+          await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
         } else if (attributeTitle.includes('Life Stage')) {
           if (mode === 'juvenile' || mode === 'juvenile-dead') {
             await selectJuvenileLifeStage(dropdown);
-            // Add delay between selections
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Adaptive delay between selections for slow connections
+            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
           } else if (mode === 'age-unknown') {
             // Skip life stage for age unknown
           } else {
             await selectDropdownOption(dropdown, 'Adult');
-            // Add delay between selections
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Adaptive delay between selections for slow connections
+            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
           }
         }
       }
@@ -1058,7 +1124,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
               verified: allFieldsFilled,
               lenientSuccess: true
             });
-          }, 4000); // Even longer wait time for field filling to complete
+          }, 6000); // Extended wait time for slow connections
         }, 500);
       }, 1000); // Wait for page to be fully ready
       
