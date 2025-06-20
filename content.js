@@ -369,9 +369,119 @@ function isObservationsListPage() {
          url.includes('without_term_id=17');
 }
 
+// Function to auto-scroll page to reveal all observations
+function autoScrollToRevealAllObservations() {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('Starting auto-scroll to reveal all observations...');
+      
+      // Check initial state
+      const initialScrollY = window.scrollY;
+      const initialDocumentHeight = document.documentElement.scrollHeight;
+      const windowHeight = window.innerHeight;
+      const paginationDiv = document.querySelector('.pages.col-xs-12');
+      
+      console.log(`Initial state: ScrollY=${initialScrollY}, DocHeight=${initialDocumentHeight}, WindowHeight=${windowHeight}, PaginationFound=${!!paginationDiv}`);
+      
+      // Always scroll to the bottom to ensure all observations are visible
+      // We want to reveal the entire page content, not just stop at first pagination sight
+      
+      const scrollStep = 800; // Larger scroll step for faster scrolling
+      const scrollDelay = 500; // Faster scrolling
+      let scrollCount = 0;
+      const maxScrollAttempts = 50; // Reasonable limit
+      let lastScrollY = initialScrollY;
+      let stuckCount = 0;
+      
+      // Helper function to check if element is in viewport
+      function isElementInViewport(element) {
+        try {
+          const rect = element.getBoundingClientRect();
+          return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+          );
+        } catch (e) {
+          console.error('Error checking viewport:', e);
+          return false;
+        }
+      }
+      
+      function performScrollStep() {
+        try {
+          const currentScrollY = window.scrollY;
+          const documentHeight = document.documentElement.scrollHeight;
+          
+          // Check if we're stuck (not scrolling)
+          if (currentScrollY === lastScrollY) {
+            stuckCount++;
+            console.log(`Scroll stuck at position ${currentScrollY}, stuck count: ${stuckCount}`);
+            if (stuckCount >= 3) {
+              console.log('Scrolling appears stuck, completing auto-scroll');
+              resolve();
+              return;
+            }
+          } else {
+            stuckCount = 0;
+          }
+          lastScrollY = currentScrollY;
+          
+          // Check if pagination is visible (indicates we've reached the end)
+          const paginationDiv = document.querySelector('.pages.col-xs-12');
+          const isPaginationVisible = paginationDiv && isElementInViewport(paginationDiv);
+          
+          console.log(`Scroll step ${scrollCount + 1}: Y=${currentScrollY}, DocHeight=${documentHeight}, WindowHeight=${windowHeight}, PaginationVisible=${isPaginationVisible}`);
+          
+          // Stop scrolling if:
+          // 1. We've reached the bottom of the page (most important), OR  
+          // 2. We've exceeded max scroll attempts (safety)
+          // Note: We don't stop just because pagination is visible - we want to scroll to the actual bottom
+          const reachedBottom = currentScrollY + windowHeight >= documentHeight - 50;
+          
+          if (reachedBottom || scrollCount >= maxScrollAttempts) {
+            console.log(`Auto-scroll completed after ${scrollCount + 1} steps. Reached bottom: ${reachedBottom}, Max attempts: ${scrollCount >= maxScrollAttempts}, Final position: ${currentScrollY}`);
+            resolve();
+            return;
+          }
+          
+          // Scroll down by scrollStep pixels
+          console.log(`Scrolling down by ${scrollStep} pixels...`);
+          window.scrollBy(0, scrollStep);
+          scrollCount++;
+          
+          // Continue scrolling after delay
+          setTimeout(performScrollStep, scrollDelay);
+        } catch (e) {
+          console.error('Error in performScrollStep:', e);
+          reject(e);
+        }
+      }
+      
+      // Start scrolling
+      console.log('Starting first scroll step...');
+      performScrollStep();
+    } catch (e) {
+      console.error('Error in autoScrollToRevealAllObservations:', e);
+      reject(e);
+    }
+  });
+}
+
 // Function to create bulk mode UI
 function createBulkModeUI() {
-  if (bulkModeButtons || !isObservationsListPage()) return;
+  console.log('createBulkModeUI called - checking conditions...');
+  console.log('bulkModeButtons exists:', !!bulkModeButtons);
+  console.log('isObservationsListPage():', isObservationsListPage());
+  console.log('current URL:', window.location.href);
+  
+  if (bulkModeButtons || !isObservationsListPage()) {
+    console.log('Exiting createBulkModeUI early due to conditions');
+    return;
+  }
+  
+  console.log('Proceeding with bulk mode UI creation...');
   
   const container = document.createElement('div');
   container.id = 'bulk-mode-container';
@@ -492,6 +602,32 @@ function createBulkModeUI() {
   
   // Start selection mode only if annotation type is set
   bulkSelectionMode = !!bulkAnnotationMode;
+  
+  // Start auto-scrolling to reveal all observations
+  console.log('About to start auto-scrolling in bulk mode...');
+  if (statusText) {
+    statusText.textContent = 'Auto-scrolling to reveal all observations...';
+    statusText.style.color = '#FF9800';
+  }
+  
+  autoScrollToRevealAllObservations().then(() => {
+    console.log('Auto-scroll completed, updating UI');
+    if (statusText) {
+      if (bulkAnnotationMode) {
+        statusText.textContent = 'Click observations to select';
+        statusText.style.color = '#4CAF50';
+      } else {
+        statusText.textContent = 'Choose annotation type in popup first';
+        statusText.style.color = '#FF9800';
+      }
+    }
+  }).catch((error) => {
+    console.error('Auto-scroll failed:', error);
+    if (statusText) {
+      statusText.textContent = bulkAnnotationMode ? 'Click observations to select' : 'Choose annotation type in popup first';
+      statusText.style.color = bulkAnnotationMode ? '#4CAF50' : '#FF9800';
+    }
+  });
   
   // Event listeners
   processButton.addEventListener('click', () => {
@@ -1003,6 +1139,7 @@ if (isObservationsListPage()) {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'toggleBulkMode') {
+    console.log('toggleBulkMode action received');
     if (!isObservationsListPage()) {
       sendResponse({success: false, message: 'Not on a supported observations page'});
       return;
@@ -1012,6 +1149,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       exitBulkMode();
       sendResponse({success: true, message: 'Bulk mode disabled'});
     } else {
+      console.log('Creating bulk mode UI from toggleBulkMode');
       createBulkModeUI();
       setupObservationClickHandlers();
       sendResponse({success: true, message: 'Bulk mode enabled - click observations to select them'});
@@ -1020,6 +1158,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   }
   
   if (request.action === 'setBulkAnnotationType') {
+    console.log('setBulkAnnotationType action received with mode:', request.mode);
     if (!isObservationsListPage()) {
       sendResponse({success: false, message: 'Not on a supported observations page'});
       return;
@@ -1029,6 +1168,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
     // Create UI if it doesn't exist
     if (!bulkModeButtons) {
+      console.log('Creating bulk mode UI from setBulkAnnotationType');
       createBulkModeUI();
       setupObservationClickHandlers();
     }
