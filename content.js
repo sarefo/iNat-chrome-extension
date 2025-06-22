@@ -855,7 +855,7 @@ async function processBulkSelection(mode = 'adult-alive') {
   const statusText = document.getElementById('bulk-status-text');
   
   if (statusText) {
-    statusText.textContent = 'Starting staggered processing...';
+    statusText.textContent = 'Processing...';
     statusText.style.color = '#FF9800';
   }
   
