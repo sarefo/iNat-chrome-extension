@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   openUrlButton.addEventListener('click', function() {
     chrome.tabs.create({
-      url: `https://www.inaturalist.org/observations?page=3&taxon_id=47120&user_id=${currentUsername}&without_term_id=17`
+      url: `https://www.inaturalist.org/observations?taxon_id=47120&user_id=${currentUsername}&without_term_id=17`
     });
   });
 
