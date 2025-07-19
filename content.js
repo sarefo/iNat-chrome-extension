@@ -21,6 +21,14 @@ function fillObservationFields(mode = 'adult-alive') {
         
         function attemptSelection() {
           try {
+            // Check if dropdown already has a non-default value
+            const currentText = dropdown.textContent.trim();
+            if (currentText !== 'Choose one...' && currentText !== '' && currentText !== 'Choose one') {
+              console.log(`Dropdown already has value: "${currentText}", skipping selection`);
+              resolve(true);
+              return;
+            }
+            
             console.log(`Attempt ${retryCount + 1}/${maxRetries + 1}: Selecting option "${optionText}"`);
             
             // Click the dropdown to open it
@@ -125,6 +133,14 @@ function fillObservationFields(mode = 'adult-alive') {
         
         function attemptJuvenileSelection() {
           try {
+            // Check if dropdown already has a non-default value
+            const currentText = dropdown.textContent.trim();
+            if (currentText !== 'Choose one...' && currentText !== '' && currentText !== 'Choose one') {
+              console.log(`Juvenile dropdown already has value: "${currentText}", skipping selection`);
+              resolve(true);
+              return;
+            }
+            
             console.log(`Attempt ${retryCount + 1}/${maxRetries + 1}: Selecting juvenile life stage`);
             dropdown.click();
             
@@ -279,6 +295,13 @@ function fillObservationFieldsAlternative(mode = 'adult-alive') {
       
       const attributeCell = row.querySelector('td.attribute');
       if (!attributeCell) return;
+      
+      // Check if dropdown already has a non-default value
+      const currentText = dropdown.textContent.trim();
+      if (currentText !== 'Choose one...' && currentText !== '' && currentText !== 'Choose one') {
+        console.log(`Alternative method: Dropdown already has value: "${currentText}", skipping`);
+        return;
+      }
       
       const attributeText = attributeCell.textContent.toLowerCase();
       
