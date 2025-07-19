@@ -21,13 +21,6 @@ function fillObservationFields(mode = 'adult-alive') {
         
         function attemptSelection() {
           try {
-            // Check if dropdown already has a non-default value
-            const currentText = dropdown.textContent.trim();
-            if (currentText !== 'Choose one...' && currentText !== '' && currentText !== 'Choose one') {
-              console.log(`Dropdown already has value: "${currentText}", skipping selection`);
-              resolve(true);
-              return;
-            }
             
             console.log(`Attempt ${retryCount + 1}/${maxRetries + 1}: Selecting option "${optionText}"`);
             
@@ -133,13 +126,6 @@ function fillObservationFields(mode = 'adult-alive') {
         
         function attemptJuvenileSelection() {
           try {
-            // Check if dropdown already has a non-default value
-            const currentText = dropdown.textContent.trim();
-            if (currentText !== 'Choose one...' && currentText !== '' && currentText !== 'Choose one') {
-              console.log(`Juvenile dropdown already has value: "${currentText}", skipping selection`);
-              resolve(true);
-              return;
-            }
             
             console.log(`Attempt ${retryCount + 1}/${maxRetries + 1}: Selecting juvenile life stage`);
             dropdown.click();
@@ -296,12 +282,6 @@ function fillObservationFieldsAlternative(mode = 'adult-alive') {
       const attributeCell = row.querySelector('td.attribute');
       if (!attributeCell) return;
       
-      // Check if dropdown already has a non-default value
-      const currentText = dropdown.textContent.trim();
-      if (currentText !== 'Choose one...' && currentText !== '' && currentText !== 'Choose one') {
-        console.log(`Alternative method: Dropdown already has value: "${currentText}", skipping`);
-        return;
-      }
       
       const attributeText = attributeCell.textContent.toLowerCase();
       
@@ -1259,9 +1239,14 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         
         // If that didn't work, try the alternative method after a short delay
         setTimeout(() => {
-          if (fieldsFound === 0) {
+          // Only try alternative if main method found no fields AND we haven't already processed
+          const currentFilledCount = countFilledFields();
+          if (fieldsFound === 0 && currentFilledCount === 0) {
             fieldsFound = fillObservationFieldsAlternative(mode);
             console.log(`Alternative method found ${fieldsFound} fields`);
+          } else if (currentFilledCount > 0) {
+            console.log(`Skipping alternative method - ${currentFilledCount} fields already filled`);
+            fieldsFound = currentFilledCount; // Use actual count
           }
           
           // Give even more time for the operations to complete
