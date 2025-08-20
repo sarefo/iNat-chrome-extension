@@ -36,9 +36,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   chrome.storage.sync.get(['username'], function(result) {
-    if (result.username) {
+    if (result.username !== undefined) {
       currentUsername = result.username;
-      usernameDisplay.textContent = currentUsername;
+      usernameDisplay.textContent = currentUsername || '(no username)';
     }
   });
 
@@ -53,9 +53,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Normal functionality for fillButtonAgeUnknown is now handled above in the bulk mode section
 
   openUrlButton.addEventListener('click', function() {
-    chrome.tabs.create({
-      url: `https://www.inaturalist.org/observations?taxon_id=1&user_id=${currentUsername}&without_term_id=17`
-    });
+    const baseUrl = 'https://www.inaturalist.org/observations?taxon_id=1';
+    const userParam = currentUsername ? `&user_id=${currentUsername}` : '';
+    const url = `${baseUrl}${userParam}&without_term_id=17`;
+    chrome.tabs.create({ url });
   });
 
   toggleBulkModeButton.addEventListener('click', function() {
@@ -357,11 +358,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function saveUsername() {
     const newUsername = usernameInput.value.trim();
-    if (newUsername) {
-      currentUsername = newUsername;
-      usernameDisplay.textContent = currentUsername;
-      chrome.storage.sync.set({username: currentUsername});
-    }
+    currentUsername = newUsername;
+    usernameDisplay.textContent = currentUsername || '(no username)';
+    chrome.storage.sync.set({username: currentUsername});
     usernameInput.style.display = 'none';
     usernameDisplay.style.display = 'block';
   }

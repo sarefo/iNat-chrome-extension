@@ -368,7 +368,6 @@ let bulkAnnotationMode = 'adult-alive'; // Default mode
 function isObservationsListPage() {
   const url = window.location.href;
   return url.includes('/observations?') && 
-         url.includes('user_id=') && 
          url.includes('without_term_id=17');
 }
 
