@@ -20,6 +20,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(results => sendResponse({success: true, results}))
       .catch(error => sendResponse({success: false, error: error.message}));
     return true; // Will respond asynchronously
+  } else if (request.action === 'processSingleObservation') {
+    // Process Webb field addition for a single observation
+    processWebbFieldForObservation(request.url, request.fieldId, request.fieldValue, request.index, request.total)
+      .then(result => sendResponse({success: true, result}))
+      .catch(error => sendResponse({success: false, error: error.message}));
+    return true; // Will respond asynchronously
   }
 });
 
@@ -204,6 +210,9 @@ async function processObservationInExistingTab(tabId, observationId, mode = 'adu
               case 'age-unknown':
                 action = 'fillFieldsAgeUnknown';
                 break;
+              case 'webb':
+                action = 'addWebbFieldSingle';
+                break;
               default:
                 action = 'fillFieldsAlive';
             }
@@ -299,6 +308,9 @@ async function processObservationInNewTab(observationId, url, mode = 'adult-aliv
               case 'age-unknown':
                 action = 'fillFieldsAgeUnknown';
                 break;
+              case 'webb':
+                action = 'addWebbFieldSingle';
+                break;
               default:
                 action = 'fillFieldsAlive';
             }
@@ -332,6 +344,61 @@ async function processObservationInNewTab(observationId, url, mode = 'adult-aliv
           reject(new Error(`Timeout processing observation ${observationId}`));
         });
       }, 10000);
+    });
+  });
+}
+
+// Process Webb field addition for a single observation
+async function processWebbFieldForObservation(url, fieldId, fieldValue, index, total) {
+  return new Promise((resolve, reject) => {
+    console.log(`Processing Webb field for observation ${index + 1}/${total}: ${url}`);
+
+    // Create new tab
+    chrome.tabs.create({
+      url: url,
+      active: false // Don't focus the tab
+    }, (tab) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      // Wait for tab to load
+      const tabLoadListener = (tabId, changeInfo, updatedTab) => {
+        if (tabId === tab.id && changeInfo.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(tabLoadListener);
+
+          // Wait for page to be ready
+          setTimeout(() => {
+            console.log(`Sending addWebbFieldSingle to tab ${tab.id}`);
+
+            // Send message to content script to add Webb field
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'addWebbFieldSingle'
+            }, (response) => {
+              console.log(`Response from tab ${tab.id}:`, response);
+
+              // Wait for fields to be filled, then close tab
+              setTimeout(() => {
+                chrome.tabs.remove(tab.id, () => {
+                  console.log(`Processed and closed tab for Webb field addition`);
+                  resolve({success: response?.success || false, message: response?.message});
+                });
+              }, 2000); // Wait for field to be added
+            });
+          }, 2000); // Wait for page load
+        }
+      };
+
+      chrome.tabs.onUpdated.addListener(tabLoadListener);
+
+      // Timeout after 15 seconds
+      setTimeout(() => {
+        chrome.tabs.onUpdated.removeListener(tabLoadListener);
+        chrome.tabs.remove(tab.id, () => {
+          reject(new Error(`Timeout processing Webb field for ${url}`));
+        });
+      }, 15000);
     });
   });
 }

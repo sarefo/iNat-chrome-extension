@@ -222,7 +222,14 @@ function fillObservationFields(mode = 'adult-alive') {
         console.log(`Processing row ${i + 1}/${rows.length}: ${attributeTitle}`);
         
         // Check which field this is and fill accordingly
-        if (attributeTitle.includes('Alive or Dead')) {
+        if (mode === 'organism-only') {
+          // Only fill Evidence of Presence field for Webb button
+          if (attributeTitle.includes('Evidence of Presence')) {
+            await selectDropdownOption(dropdown, 'Organism');
+            // Adaptive delay between selections for slow connections
+            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
+          }
+        } else if (attributeTitle.includes('Alive or Dead')) {
           const aliveOrDead = (mode === 'adult-dead' || mode === 'juvenile-dead') ? 'Dead' : 'Alive';
           await selectDropdownOption(dropdown, aliveOrDead);
           // Adaptive delay between selections for slow connections
@@ -284,7 +291,24 @@ function fillObservationFieldsAlternative(mode = 'adult-alive') {
       
       
       const attributeText = attributeCell.textContent.toLowerCase();
-      
+
+      // For organism-only mode, only fill Evidence of Presence
+      if (mode === 'organism-only') {
+        if (attributeText.includes('evidence')) {
+          setTimeout(() => {
+            dropdown.click();
+            setTimeout(() => {
+              const organismOption = document.querySelector('a[title*="Organism"]');
+              if (organismOption) {
+                organismOption.click();
+                fieldsFound++;
+              }
+            }, 300 * (index + 1));
+          }, 200 * (index + 1));
+        }
+        return; // Skip other fields for organism-only mode
+      }
+
       // Simulate clicking the dropdown and selecting the appropriate option
       if (attributeText.includes('alive') || attributeText.includes('dead')) {
         // For "Alive or Dead" field
@@ -367,8 +391,11 @@ let bulkAnnotationMode = 'adult-alive'; // Default mode
 // Function to check if we're on a supported observations list page
 function isObservationsListPage() {
   const url = window.location.href;
-  return url.includes('/observations?') && 
-         url.includes('without_term_id=17');
+  // Check if we're on any observations list page
+  return url.includes('/observations?') ||
+         (url.includes('/observations') && window.location.search.length > 0) ||
+         url.includes('/observations/export') ||
+         url.includes('/observations/identify');
 }
 
 // Function to auto-scroll page to reveal all observations
@@ -755,6 +782,7 @@ function getAnnotationDisplayName(mode) {
     case 'juvenile': return '🐛 Juvenile';
     case 'juvenile-dead': return '💀 Juvenile Dead';
     case 'age-unknown': return '❓ Age Unknown';
+    case 'webb': return '👤 Webb (Organism + Original observer)';
     default: return 'Unknown';
   }
 }
@@ -1282,7 +1310,333 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       sendResponse({success: false, error: error.message});
     }
   }
+
+  // Handle Webb field additions
+  if (request.action === 'addWebbFieldSingle') {
+    try {
+      // Check if we're on an observation page
+      if (!window.location.pathname.includes('/observations/')) {
+        sendResponse({success: false, message: 'Not on an observation page'});
+        return;
+      }
+
+      // First add the "Evidence of presence: Organism" annotation
+      setTimeout(() => {
+        const fieldsFilledAnnotation = fillObservationFields('organism-only');
+        console.log(`Filled ${fieldsFilledAnnotation} annotation fields`);
+
+        // Then add the observation field
+        setTimeout(() => {
+          addObservationField(6392, 'Peter Webb', function(success) {
+            if (success) {
+              sendResponse({success: true, message: 'Webb field and organism annotation added successfully'});
+            } else {
+              sendResponse({success: fieldsFilledAnnotation > 0, message: fieldsFilledAnnotation > 0 ? 'Organism annotation added, but Webb field failed' : 'Failed to add Webb field'});
+            }
+          });
+        }, 1000);
+      }, 500);
+
+      return true; // Will respond asynchronously
+    } catch (error) {
+      console.error('Error adding Webb field:', error);
+      sendResponse({success: false, message: error.message});
+    }
+  }
 });
+
+// Function to add an observation field
+function addObservationField(fieldId, fieldValue, callback) {
+  console.log(`Adding observation field ${fieldId} with value "${fieldValue}"`);
+
+  // Try to find the observation fields section or add field button
+  const fieldsSection = document.querySelector('.ObservationFieldsReadOnly, .observation-field-panel, [data-testid="observation-fields"], .ObservationFields');
+
+  if (!fieldsSection) {
+    console.log('Observation fields section not found, looking for add field button');
+
+    // Try to find "Add field" button - use multiple selectors
+    let addFieldButton = null;
+
+    // Look for buttons with text "Add field"
+    const buttons = document.querySelectorAll('button, a.btn, .btn');
+    for (const btn of buttons) {
+      if (btn.textContent.includes('Add field') || btn.textContent.includes('Add Field')) {
+        addFieldButton = btn;
+        break;
+      }
+    }
+
+    // Alternative: Look for the observation fields add button specifically
+    if (!addFieldButton) {
+      addFieldButton = document.querySelector('button[data-testid="add-observation-field"], .ObservationFieldsAdd button, .observation-fields-add button');
+    }
+
+    if (addFieldButton) {
+      console.log('Found add field button, clicking it');
+      addFieldButton.click();
+
+      setTimeout(() => {
+        // Try to fill the field after clicking add
+        fillObservationFieldForm(fieldId, fieldValue, callback);
+      }, 1500);
+    } else {
+      console.log('Add field button not found, trying direct form approach');
+      // Try to fill the form directly in case it's already open
+      fillObservationFieldForm(fieldId, fieldValue, callback);
+    }
+    return;
+  }
+
+  console.log('Fields section found, looking for add button within it');
+
+  // Look for add button within the fields section
+  let addButton = fieldsSection.querySelector('button, a');
+  if (!addButton) {
+    // Look for any clickable element that might add a field
+    const clickables = fieldsSection.querySelectorAll('button, a, [role="button"]');
+    for (const elem of clickables) {
+      if (elem.textContent.includes('Add') || elem.textContent.includes('add')) {
+        addButton = elem;
+        break;
+      }
+    }
+  }
+
+  if (addButton) {
+    console.log('Clicking add button in fields section');
+    addButton.click();
+    setTimeout(() => {
+      fillObservationFieldForm(fieldId, fieldValue, callback);
+    }, 1500);
+  } else {
+    // Try filling directly
+    fillObservationFieldForm(fieldId, fieldValue, callback);
+  }
+}
+
+function fillObservationFieldForm(fieldId, fieldValue, callback) {
+  console.log('Attempting to fill observation field form');
+
+  // Wait a bit for the form to appear
+  setTimeout(() => {
+    // Look for the field input/selector
+    let fieldInput = document.querySelector('input[placeholder*="Choose a field"], input[placeholder*="Select a field"], input.observation-field-chooser-input, input[name*="observation_field"]');
+
+    if (!fieldInput) {
+      // Try to find any text input that might be for the field name
+      const inputs = document.querySelectorAll('input[type="text"]');
+      for (const input of inputs) {
+        const placeholder = input.getAttribute('placeholder') || '';
+        const name = input.getAttribute('name') || '';
+        if (placeholder.toLowerCase().includes('field') ||
+            name.toLowerCase().includes('field') ||
+            input.classList.contains('observation-field')) {
+          fieldInput = input;
+          break;
+        }
+      }
+    }
+
+    if (fieldInput) {
+      console.log('Found field input, typing "Original observer"');
+
+      // Clear and type the field name
+      fieldInput.value = '';
+      fieldInput.focus();
+      fieldInput.value = 'Original observer';
+
+      // Trigger various events to ensure autocomplete works
+      fieldInput.dispatchEvent(new Event('input', { bubbles: true }));
+      fieldInput.dispatchEvent(new Event('change', { bubbles: true }));
+      fieldInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+
+      // Wait for autocomplete suggestions to appear
+      setTimeout(() => {
+        // Look for autocomplete suggestions
+        let suggestion = null;
+
+        // Try different selectors for autocomplete items
+        const suggestionSelectors = [
+          '.ui-autocomplete li',
+          '.autocomplete-suggestion',
+          '.ui-menu-item',
+          '[role="option"]',
+          '.dropdown-menu a',
+          '.ac_results li'
+        ];
+
+        for (const selector of suggestionSelectors) {
+          const suggestions = document.querySelectorAll(selector);
+          for (const s of suggestions) {
+            if (s.textContent.includes('Original observer')) {
+              suggestion = s;
+              break;
+            }
+          }
+          if (suggestion) break;
+        }
+
+        if (suggestion) {
+          console.log('Found and clicking Original observer suggestion');
+          suggestion.click();
+        } else {
+          console.log('No autocomplete suggestion found, continuing anyway');
+        }
+
+        // Wait for value input to appear
+        setTimeout(() => {
+          // Find the value input - specifically look for input with name="value"
+          let valueInput = document.querySelector('input[name="value"]');
+
+          if (!valueInput) {
+            // Fallback to other selectors
+            valueInput = document.querySelector('input[placeholder*="Value"], input[placeholder*="value"], .observation-field-value input');
+          }
+
+          if (!valueInput) {
+            // Look for any second text input (often the value field)
+            const allInputs = document.querySelectorAll('input[type="text"]');
+            if (allInputs.length > 1) {
+              // The second input is often the value field
+              valueInput = allInputs[1];
+            }
+          }
+
+          if (valueInput) {
+            console.log('Found value input, entering "Peter Webb"');
+            valueInput.value = fieldValue;
+            valueInput.dispatchEvent(new Event('input', { bubbles: true }));
+            valueInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Look for save/add button
+            setTimeout(() => {
+              let saveButton = null;
+
+              // First try to find the Add button within the observation field container
+              const observationFieldDiv = document.querySelector('.observation-field');
+              if (observationFieldDiv) {
+                // Look for the button within this specific container
+                saveButton = observationFieldDiv.querySelector('button[type="submit"]');
+                if (!saveButton) {
+                  saveButton = observationFieldDiv.querySelector('button.btn.btn-default');
+                }
+                if (!saveButton) {
+                  saveButton = observationFieldDiv.querySelector('button');
+                }
+              }
+
+              // If not found in container, try the input group button
+              if (!saveButton) {
+                const inputGroupBtn = document.querySelector('.input-group-btn button');
+                if (inputGroupBtn && inputGroupBtn.textContent.trim().toLowerCase() === 'add') {
+                  saveButton = inputGroupBtn;
+                }
+              }
+
+              // Fallback to general search
+              if (!saveButton) {
+                // Look for button with type="submit" that says "Add"
+                const submitButtons = document.querySelectorAll('button[type="submit"]');
+                for (const btn of submitButtons) {
+                  if (btn.textContent.trim().toLowerCase() === 'add') {
+                    saveButton = btn;
+                    break;
+                  }
+                }
+              }
+
+              if (!saveButton) {
+                // Try button with the specific class
+                saveButton = document.querySelector('button.btn.btn-default');
+              }
+
+              if (saveButton) {
+                console.log('Found save/add button, clicking it');
+                console.log('Button text:', saveButton.textContent);
+                console.log('Button class:', saveButton.className);
+                console.log('Button type:', saveButton.getAttribute('type'));
+
+                // Make sure button is visible and enabled
+                if (saveButton.disabled) {
+                  console.log('Button is disabled, enabling it');
+                  saveButton.disabled = false;
+                }
+
+                // Click the button
+                saveButton.click();
+
+                // Also try dispatching a click event
+                const clickEvent = new MouseEvent('click', {
+                  view: window,
+                  bubbles: true,
+                  cancelable: true
+                });
+                saveButton.dispatchEvent(clickEvent);
+
+                // Check if we need to submit the form
+                setTimeout(() => {
+                  // Check if the field was added (form should disappear)
+                  const formStillVisible = document.querySelector('.observation-field input[name="value"]');
+                  if (formStillVisible && formStillVisible.value === fieldValue) {
+                    console.log('Form still visible, trying form submit');
+
+                    // Try to find and submit the form
+                    const form = saveButton.closest('form');
+                    if (form) {
+                      console.log('Submitting form');
+                      form.submit();
+                    } else {
+                      // Try clicking button again
+                      saveButton.click();
+                    }
+                  }
+                  callback(true);
+                }, 500);
+              } else {
+                console.log('Save button not found, trying to submit form directly');
+
+                // Try to find the form and submit it
+                const form = valueInput.closest('form');
+                if (form) {
+                  console.log('Found form, submitting');
+                  form.submit();
+                  callback(true);
+                } else {
+                  // Last resort: simulate Enter key
+                  const enterEvent = new KeyboardEvent('keypress', {
+                    key: 'Enter',
+                    keyCode: 13,
+                    which: 13,
+                    bubbles: true,
+                    cancelable: true
+                  });
+                  valueInput.dispatchEvent(enterEvent);
+
+                  // Also try submit event
+                  const submitEvent = new Event('submit', {
+                    bubbles: true,
+                    cancelable: true
+                  });
+                  if (valueInput.form) {
+                    valueInput.form.dispatchEvent(submitEvent);
+                  }
+                  callback(true);
+                }
+              }
+            }, 500);
+          } else {
+            console.log('Value input not found');
+            callback(false);
+          }
+        }, 1500);
+      }, 1500);
+    } else {
+      console.log('Field input not found, cannot add observation field');
+      callback(false);
+    }
+  }, 500);
+}
 
 // Add some debugging to see what's available on the page
 console.log('iNaturalist Auto Filler extension loaded');

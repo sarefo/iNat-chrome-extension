@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const toggleBulkModeButton = document.getElementById('toggleBulkMode');
   const bulkCounter = document.getElementById('bulkCounter');
   const startBulkProcessButton = document.getElementById('startBulkProcess');
+  const webbButton = document.getElementById('webbButton');
   const statusDiv = document.getElementById('status');
   
   let bulkModeActive = false;
@@ -57,6 +58,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const userParam = currentUsername ? `&user_id=${currentUsername}` : '';
     const url = `${baseUrl}${userParam}&without_term_id=17`;
     chrome.tabs.create({ url });
+  });
+
+  webbButton.addEventListener('click', function(e) {
+    if (bulkModeActive) {
+      // In bulk mode - set Webb as the annotation type
+      e.preventDefault();
+      selectAnnotationButton(webbButton, 'webb', 'Webb (Organism + Original observer)');
+      return;
+    }
+
+    // Single observation mode
+    statusDiv.textContent = 'Adding Webb field...';
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'addWebbFieldSingle'}, function(response) {
+        if (chrome.runtime.lastError) {
+          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist observation page';
+          statusDiv.style.color = 'red';
+        } else if (response && response.success) {
+          statusDiv.textContent = 'Webb field added successfully!';
+          statusDiv.style.color = 'green';
+        } else {
+          statusDiv.textContent = response ? response.message : 'Could not add Webb field';
+          statusDiv.style.color = 'orange';
+        }
+      });
+    });
   });
 
   toggleBulkModeButton.addEventListener('click', function() {
@@ -136,13 +164,14 @@ document.addEventListener('DOMContentLoaded', function() {
       case 'juvenile': return fillButtonJuvenile;
       case 'juvenile-dead': return fillButtonJuvenileDead;
       case 'age-unknown': return fillButtonAgeUnknown;
+      case 'webb': return webbButton;
       default: return null;
     }
   }
   
   // Function to clear button selections
   function clearButtonSelections() {
-    [fillButtonAlive, fillButtonDead, fillButtonJuvenile, fillButtonJuvenileDead, fillButtonAgeUnknown].forEach(button => {
+    [fillButtonAlive, fillButtonDead, fillButtonJuvenile, fillButtonJuvenileDead, fillButtonAgeUnknown, webbButton].forEach(button => {
       if (button) {
         button.style.border = '';
         button.style.transform = '';
