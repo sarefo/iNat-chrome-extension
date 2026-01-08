@@ -3,7 +3,8 @@
     "allow": [
       "Bash(rg:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(wc -l *.js *.html)"
     ],
     "deny": []
   }
