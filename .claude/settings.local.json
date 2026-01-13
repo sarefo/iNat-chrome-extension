@@ -4,7 +4,10 @@
       "Bash(rg:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(wc -l *.js *.html)"
+      "Bash(wc -l *.js *.html)",
+      "mcp__puppeteer__puppeteer_navigate",
+      "mcp__puppeteer__puppeteer_evaluate",
+      "mcp__puppeteer__puppeteer_screenshot"
     ],
     "deny": []
   }
