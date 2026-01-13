@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const fillButtonJuvenile = document.getElementById('fillFieldsJuvenile');
   const fillButtonJuvenileDead = document.getElementById('fillFieldsJuvenileDead');
   const fillButtonAgeUnknown = document.getElementById('fillFieldsAgeUnknown');
+  const fillButtonFlowers = document.getElementById('fillFieldsFlowers');
+  const fillButtonFruits = document.getElementById('fillFieldsFruits');
+  const fillButtonNoFlowersFruits = document.getElementById('fillFieldsNoFlowersFruits');
   const openUrlButton = document.getElementById('openUrl');
   const toggleBulkModeButton = document.getElementById('toggleBulkMode');
   const bulkCounter = document.getElementById('bulkCounter');
@@ -165,13 +168,16 @@ document.addEventListener('DOMContentLoaded', function() {
       case 'juvenile-dead': return fillButtonJuvenileDead;
       case 'age-unknown': return fillButtonAgeUnknown;
       case 'webb': return webbButton;
+      case 'plant-flowers': return fillButtonFlowers;
+      case 'plant-fruits': return fillButtonFruits;
+      case 'plant-no-flowers-fruits': return fillButtonNoFlowersFruits;
       default: return null;
     }
   }
   
   // Function to clear button selections
   function clearButtonSelections() {
-    [fillButtonAlive, fillButtonDead, fillButtonJuvenile, fillButtonJuvenileDead, fillButtonAgeUnknown, webbButton].forEach(button => {
+    [fillButtonAlive, fillButtonDead, fillButtonJuvenile, fillButtonJuvenileDead, fillButtonAgeUnknown, webbButton, fillButtonFlowers, fillButtonFruits, fillButtonNoFlowersFruits].forEach(button => {
       if (button) {
         button.style.border = '';
         button.style.transform = '';
@@ -211,13 +217,13 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsAlive'}, function(response) {
         if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist page';
+          statusDiv.textContent = 'Error: Must be on a single observation page';
           statusDiv.style.color = 'red';
         } else if (response && response.success) {
           statusDiv.textContent = 'Fields filled successfully!';
           statusDiv.style.color = 'green';
         } else {
-          statusDiv.textContent = 'Could not find fields to fill';
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
           statusDiv.style.color = 'orange';
         }
       });
@@ -237,13 +243,13 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsDead'}, function(response) {
         if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist page';
+          statusDiv.textContent = 'Error: Must be on a single observation page';
           statusDiv.style.color = 'red';
         } else if (response && response.success) {
           statusDiv.textContent = 'Fields filled successfully!';
           statusDiv.style.color = 'green';
         } else {
-          statusDiv.textContent = 'Could not find fields to fill';
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
           statusDiv.style.color = 'orange';
         }
       });
@@ -263,13 +269,13 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsJuvenile'}, function(response) {
         if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist page';
+          statusDiv.textContent = 'Error: Must be on a single observation page';
           statusDiv.style.color = 'red';
         } else if (response && response.success) {
           statusDiv.textContent = 'Fields filled successfully!';
           statusDiv.style.color = 'green';
         } else {
-          statusDiv.textContent = 'Could not find fields to fill';
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
           statusDiv.style.color = 'orange';
         }
       });
@@ -289,13 +295,13 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsJuvenileDead'}, function(response) {
         if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist page';
+          statusDiv.textContent = 'Error: Must be on a single observation page';
           statusDiv.style.color = 'red';
         } else if (response && response.success) {
           statusDiv.textContent = 'Fields filled successfully!';
           statusDiv.style.color = 'green';
         } else {
-          statusDiv.textContent = 'Could not find fields to fill';
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
           statusDiv.style.color = 'orange';
         }
       });
@@ -308,26 +314,104 @@ document.addEventListener('DOMContentLoaded', function() {
       selectAnnotationButton(fillButtonAgeUnknown, 'age-unknown', 'Age Unknown');
       return;
     }
-    
+
     // Normal functionality
     statusDiv.textContent = 'Filling fields...';
-    
+
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsAgeUnknown'}, function(response) {
         if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist page';
+          statusDiv.textContent = 'Error: Must be on a single observation page';
           statusDiv.style.color = 'red';
         } else if (response && response.success) {
           statusDiv.textContent = 'Fields filled successfully!';
           statusDiv.style.color = 'green';
         } else {
-          statusDiv.textContent = 'Could not find fields to fill';
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
           statusDiv.style.color = 'orange';
         }
       });
     });
   });
-  
+
+  fillButtonFlowers.addEventListener('click', function(e) {
+    if (bulkModeActive) {
+      e.preventDefault();
+      selectAnnotationButton(fillButtonFlowers, 'plant-flowers', 'Flowers + Green Leaves');
+      return;
+    }
+
+    // Normal functionality
+    statusDiv.textContent = 'Filling plant phenology fields...';
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsPlantFlowers'}, function(response) {
+        if (chrome.runtime.lastError) {
+          statusDiv.textContent = 'Error: Must be on a single observation page';
+          statusDiv.style.color = 'red';
+        } else if (response && response.success) {
+          statusDiv.textContent = 'Plant fields filled successfully!';
+          statusDiv.style.color = 'green';
+        } else {
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
+          statusDiv.style.color = 'orange';
+        }
+      });
+    });
+  });
+
+  fillButtonFruits.addEventListener('click', function(e) {
+    if (bulkModeActive) {
+      e.preventDefault();
+      selectAnnotationButton(fillButtonFruits, 'plant-fruits', 'Fruits/Seeds + Green Leaves');
+      return;
+    }
+
+    // Normal functionality
+    statusDiv.textContent = 'Filling plant phenology fields...';
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsPlantFruits'}, function(response) {
+        if (chrome.runtime.lastError) {
+          statusDiv.textContent = 'Error: Must be on a single observation page';
+          statusDiv.style.color = 'red';
+        } else if (response && response.success) {
+          statusDiv.textContent = 'Plant fields filled successfully!';
+          statusDiv.style.color = 'green';
+        } else {
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
+          statusDiv.style.color = 'orange';
+        }
+      });
+    });
+  });
+
+  fillButtonNoFlowersFruits.addEventListener('click', function(e) {
+    if (bulkModeActive) {
+      e.preventDefault();
+      selectAnnotationButton(fillButtonNoFlowersFruits, 'plant-no-flowers-fruits', 'No Flowers/Fruits + Green Leaves');
+      return;
+    }
+
+    // Normal functionality
+    statusDiv.textContent = 'Filling plant phenology fields...';
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsPlantNoFlowersFruits'}, function(response) {
+        if (chrome.runtime.lastError) {
+          statusDiv.textContent = 'Error: Must be on a single observation page';
+          statusDiv.style.color = 'red';
+        } else if (response && response.success) {
+          statusDiv.textContent = 'Plant fields filled successfully!';
+          statusDiv.style.color = 'green';
+        } else {
+          statusDiv.textContent = response?.error || 'Could not find fields to fill';
+          statusDiv.style.color = 'orange';
+        }
+      });
+    });
+  });
+
   // Start bulk processing button
   startBulkProcessButton.addEventListener('click', function() {
     if (!selectedAnnotationType || selectedCount === 0) {

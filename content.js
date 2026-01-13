@@ -229,6 +229,23 @@ function fillObservationFields(mode = 'adult-alive') {
             // Adaptive delay between selections for slow connections
             await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
           }
+        } else if (mode === 'plant-flowers' || mode === 'plant-fruits' || mode === 'plant-no-flowers-fruits') {
+          // Handle plant phenology annotations
+          if (attributeTitle.includes('Flowers') || attributeTitle.includes('Fruit')) {
+            let phenologyOption;
+            if (mode === 'plant-flowers') {
+              phenologyOption = 'Flowers';
+            } else if (mode === 'plant-fruits') {
+              phenologyOption = 'Fruits or Seeds';
+            } else {
+              phenologyOption = 'No Flowers or Fruits';
+            }
+            await selectDropdownOption(dropdown, phenologyOption);
+            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
+          } else if (attributeTitle.includes('Leaves') || attributeTitle.includes('leaves')) {
+            await selectDropdownOption(dropdown, 'Green Leaves');
+            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 300));
+          }
         } else if (attributeTitle.includes('Alive or Dead')) {
           const aliveOrDead = (mode === 'adult-dead' || mode === 'juvenile-dead') ? 'Dead' : 'Alive';
           await selectDropdownOption(dropdown, aliveOrDead);
@@ -720,11 +737,18 @@ function getExpectedFieldCount(mode) {
   rows.forEach(row => {
     const attributeCell = row.querySelector('td.attribute div');
     if (!attributeCell) return;
-    
+
     const attributeTitle = attributeCell.getAttribute('title') || attributeCell.textContent.trim();
-    
+
     // Count fields that should be filled for this mode
-    if (attributeTitle.includes('Alive or Dead')) {
+    if (mode === 'plant-flowers' || mode === 'plant-fruits' || mode === 'plant-no-flowers-fruits') {
+      // For plant modes, count Flowers/Fruits and Leaves annotations
+      if (attributeTitle.includes('Flowers') || attributeTitle.includes('Fruit')) {
+        expectedFields++;
+      } else if (attributeTitle.includes('Leaves')) {
+        expectedFields++;
+      }
+    } else if (attributeTitle.includes('Alive or Dead')) {
       // Should be filled for all modes except age-unknown
       if (mode !== 'age-unknown') {
         expectedFields++;
@@ -783,6 +807,9 @@ function getAnnotationDisplayName(mode) {
     case 'juvenile-dead': return '💀 Juvenile Dead';
     case 'age-unknown': return '❓ Age Unknown';
     case 'webb': return '👤 Webb (Organism + Original observer)';
+    case 'plant-flowers': return '🌼 Flowers + Green Leaves';
+    case 'plant-fruits': return '🍇 Fruits + Green Leaves';
+    case 'plant-no-flowers-fruits': return '🍇❌ No Flowers/Fruits + Green Leaves';
     default: return 'Unknown';
   }
 }
@@ -1042,6 +1069,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     }
     
     sendResponse({received: true});
+    return true;
   }
 });
 
@@ -1168,13 +1196,24 @@ if (isObservationsListPage()) {
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  console.log('Message received in content script:', request.action);
+
+  if (request.action === 'getBulkModeStatus') {
+    sendResponse({
+      active: bulkSelectionMode,
+      annotationType: bulkAnnotationMode,
+      selectedCount: selectedObservations.size
+    });
+    return true;
+  }
+
   if (request.action === 'toggleBulkMode') {
     console.log('toggleBulkMode action received');
     if (!isObservationsListPage()) {
       sendResponse({success: false, message: 'Not on a supported observations page'});
-      return;
+      return true;
     }
-    
+
     if (bulkModeButtons) {
       exitBulkMode();
       sendResponse({success: true, message: 'Bulk mode disabled'});
@@ -1184,51 +1223,54 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       setupObservationClickHandlers();
       sendResponse({success: true, message: 'Bulk mode enabled - click observations to select them'});
     }
-    return;
+    return true;
   }
   
   if (request.action === 'setBulkAnnotationType') {
     console.log('setBulkAnnotationType action received with mode:', request.mode);
     if (!isObservationsListPage()) {
       sendResponse({success: false, message: 'Not on a supported observations page'});
-      return;
+      return true;
     }
-    
+
     bulkAnnotationMode = request.mode;
-    
+
     // Create UI if it doesn't exist
     if (!bulkModeButtons) {
       console.log('Creating bulk mode UI from setBulkAnnotationType');
       createBulkModeUI();
       setupObservationClickHandlers();
     }
-    
+
     // Enable selection mode
     bulkSelectionMode = true;
     updateSelectionUI();
-    
+
     sendResponse({success: true, message: `Annotation type set to ${getAnnotationDisplayName(request.mode)}`});
-    return;
+    return true;
   }
   
   if (request.action === 'processBulkSelection') {
     if (!bulkSelectionMode || selectedObservations.size === 0) {
       sendResponse({success: false, message: 'No observations selected or bulk mode not active'});
-      return;
+      return true;
     }
-    
+
     processBulkSelection(request.mode || bulkAnnotationMode || 'adult-alive');
     sendResponse({success: true, message: `Processing ${selectedObservations.size} observations with ${request.mode || bulkAnnotationMode || 'adult-alive'} annotations`});
-    return;
+    return true;
   }
   
-  if (request.action === 'fillFieldsAlive' || request.action === 'fillFieldsDead' || request.action === 'fillFieldsJuvenile' || request.action === 'fillFieldsJuvenileDead' || request.action === 'fillFieldsAgeUnknown') {
+  if (request.action === 'fillFieldsAlive' || request.action === 'fillFieldsDead' || request.action === 'fillFieldsJuvenile' || request.action === 'fillFieldsJuvenileDead' || request.action === 'fillFieldsAgeUnknown' || request.action === 'fillFieldsPlantFlowers' || request.action === 'fillFieldsPlantFruits' || request.action === 'fillFieldsPlantNoFlowersFruits') {
+    console.log('Fill fields action matched:', request.action);
     try {
       // Check if we're on an observation page
       if (!window.location.pathname.includes('/observations/')) {
+        console.log('Not on observation page, pathname:', window.location.pathname);
         sendResponse({success: false, error: 'Not on an observation page'});
-        return;
+        return true;
       }
+      console.log('On observation page, proceeding with fill');
       
       // Determine the mode based on the action
       let mode;
@@ -1253,6 +1295,18 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         case 'fillFieldsAgeUnknown':
           mode = 'age-unknown';
           description = 'age unknown organism';
+          break;
+        case 'fillFieldsPlantFlowers':
+          mode = 'plant-flowers';
+          description = 'plant with flowers and green leaves';
+          break;
+        case 'fillFieldsPlantFruits':
+          mode = 'plant-fruits';
+          description = 'plant with fruits/seeds and green leaves';
+          break;
+        case 'fillFieldsPlantNoFlowersFruits':
+          mode = 'plant-no-flowers-fruits';
+          description = 'plant with no flowers/fruits and green leaves';
           break;
       }
       
@@ -1304,10 +1358,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       }, 1000); // Wait for page to be fully ready
       
       return true; // Will respond asynchronously
-      
+
     } catch (error) {
       console.error('Error filling fields:', error);
       sendResponse({success: false, error: error.message});
+      return true;
     }
   }
 
@@ -1341,6 +1396,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     } catch (error) {
       console.error('Error adding Webb field:', error);
       sendResponse({success: false, message: error.message});
+      return true;
     }
   }
 });

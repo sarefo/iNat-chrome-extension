@@ -117,6 +117,12 @@
     .start-button:hover {
       background-color: #F57C00;
     }
+    .plant-button {
+      background-color: #8BC34A;
+    }
+    .plant-button:hover {
+      background-color: #7CB342;
+    }
   </style>
 </head>
 <body>
@@ -128,6 +134,11 @@
   <div class="button-row">
     <button id="fillFieldsJuvenileDead" title="Fill fields for dead juvenile organism">&#128128; Juvenile</button>
     <button id="fillFieldsDead" title="Fill fields for dead adult organism">&#128128; Adult</button>
+  </div>
+  <div class="button-row">
+    <button id="fillFieldsFlowers" class="plant-button" title="Fill plant phenology: Flowers + Green Leaves">&#127804; Flowers</button>
+    <button id="fillFieldsFruits" class="plant-button" title="Fill plant phenology: Fruits/Seeds + Green Leaves">&#127793; Fruits</button>
+    <button id="fillFieldsNoFlowersFruits" class="plant-button" title="Fill plant phenology: No Flowers/Fruits + Green Leaves">&#10060; None</button>
   </div>
   <button id="toggleBulkMode" class="url-button" title="Toggle bulk marking mode on observation list pages">Bulk Mark Mode</button>
   <button id="openUrl" class="url-button" title="Open page showing observations without annotations">Obs w/o annotations</button>
