@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <style>
     body {
-      width: 200px;
+      width: 280px;
       padding: 15px;
       font-family: Arial, sans-serif;
     }
@@ -123,6 +124,66 @@
     .plant-button:hover {
       background-color: #7CB342;
     }
+    .queue-section {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      margin-top: 10px;
+    }
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .queue-badge {
+      background: #4CAF50;
+      color: white;
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+    .queue-list {
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .queue-item:last-child {
+      border-bottom: none;
+    }
+    .queue-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .queue-item-delete {
+      background: none;
+      border: none;
+      color: #f44336;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0 2px;
+      margin-bottom: 0;
+      width: auto;
+      min-width: 0;
+    }
+    .process-queues-btn {
+      background-color: #7B1FA2;
+      margin-top: 6px;
+    }
+    .process-queues-btn:hover {
+      background-color: #6A1B9A;
+    }
   </style>
 </head>
 <body>
@@ -147,7 +208,18 @@
   <div id="bulkCounter" class="bulk-counter">0 observations selected</div>
   
   <button id="startBulkProcess" class="start-button" title="Start processing selected observations with chosen annotation type">Start Processing</button>
-  
+
+  <div class="queue-section" id="queueSection" style="display:none">
+    <div class="queue-header">
+      <span>📋 Queues</span>
+      <span id="queueBadge" class="queue-badge">0</span>
+    </div>
+    <div id="queueList" class="queue-list"></div>
+    <button id="processQueuesButton" class="process-queues-btn" style="display:none">
+      ▶ Process Selected
+    </button>
+  </div>
+
   <div id="status" class="status"></div>
   <div class="username-container">
     <button id="username-display" class="username-display" title="Click to edit username">portioid</button>

@@ -405,6 +405,9 @@ let selectedObservations = new Set();
 let bulkModeButtons = null;
 let bulkAnnotationMode = 'adult-alive'; // Default mode
 
+const STORAGE_KEY_CURRENT = 'innat_current_collection';
+const STORAGE_KEY_QUEUES   = 'innat_queues';
+
 // Function to check if we're on a supported observations list page
 function isObservationsListPage() {
   const url = window.location.href;
@@ -413,6 +416,69 @@ function isObservationsListPage() {
          (url.includes('/observations') && window.location.search.length > 0) ||
          url.includes('/observations/export') ||
          url.includes('/observations/identify');
+}
+
+// Persist current accumulator to chrome.storage.local
+function saveCurrentCollection() {
+  if (!selectedObservations.size) {
+    chrome.storage.local.remove([STORAGE_KEY_CURRENT]);
+    return;
+  }
+  const data = {
+    annotationType: bulkAnnotationMode,
+    observations: Array.from(selectedObservations),
+    lastUpdated: Date.now()
+  };
+  chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data });
+}
+
+// Highlight observations already in selectedObservations on the current page
+function highlightRestoredObservations() {
+  const links = document.querySelectorAll('.thumbnail a[href*="/observations/"]');
+  links.forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+    const id = href.split('/observations/')[1].split('?')[0].split('#')[0];
+    if (selectedObservations.has(id)) {
+      const div = link.closest('.observation.observation-grid-cell');
+      if (div) {
+        div.style.border = '3px solid #4CAF50';
+        div.style.boxShadow = '0 0 15px rgba(76, 175, 80, 0.6)';
+        div.style.borderRadius = '8px';
+      }
+    }
+  });
+}
+
+// Save current accumulator as a named queue, then clear the accumulator
+async function saveAsNamedQueue() {
+  const observations = Array.from(selectedObservations);
+  if (!observations.length || !bulkAnnotationMode) return null;
+
+  const id = `q_${Date.now()}`;
+  const name = `${getAnnotationDisplayName(bulkAnnotationMode)} (${observations.length})`;
+  const queue = {
+    id,
+    name,
+    annotationType: bulkAnnotationMode,
+    observations,
+    created: Date.now(),
+    status: 'pending'
+  };
+
+  const result = await new Promise(resolve => {
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], data => {
+      const queues = data[STORAGE_KEY_QUEUES] || [];
+      queues.push(queue);
+      chrome.storage.local.set({ [STORAGE_KEY_QUEUES]: queues }, () => resolve(queue));
+    });
+  });
+
+  // Clear accumulator
+  selectedObservations.clear();
+  saveCurrentCollection(); // removes STORAGE_KEY_CURRENT since set is empty
+
+  return result;
 }
 
 // Function to auto-scroll page to reveal all observations
@@ -574,6 +640,17 @@ function createBulkModeUI() {
     text-align: center;
   `;
   
+  const accumulatedCounter = document.createElement('div');
+  accumulatedCounter.id = 'accumulated-counter';
+  accumulatedCounter.textContent = selectedObservations.size > 0 ? `${selectedObservations.size} selected across pages` : '';
+  accumulatedCounter.style.cssText = `
+    color: #2196F3;
+    font-size: 11px;
+    text-align: center;
+    margin-bottom: 8px;
+    display: ${selectedObservations.size > 0 ? 'block' : 'none'};
+  `;
+
   const buttonRow = document.createElement('div');
   buttonRow.style.cssText = `
     display: flex;
@@ -582,7 +659,7 @@ function createBulkModeUI() {
     justify-content: space-between;
     width: 100%;
   `;
-  
+
   const counter = document.createElement('span');
   counter.id = 'selection-counter';
   counter.textContent = '0 selected';
@@ -591,7 +668,7 @@ function createBulkModeUI() {
     font-size: 12px;
     flex: 1;
   `;
-  
+
   const selectAllButton = document.createElement('button');
   selectAllButton.textContent = 'Select All';
   selectAllButton.id = 'bulk-select-all-button';
@@ -605,7 +682,21 @@ function createBulkModeUI() {
     font-size: 11px;
     white-space: nowrap;
   `;
-  
+
+  const saveQueueButton = document.createElement('button');
+  saveQueueButton.textContent = 'Save Queue';
+  saveQueueButton.id = 'bulk-save-queue-button';
+  saveQueueButton.style.cssText = `
+    background: #FF5722;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    white-space: nowrap;
+  `;
+
   const processButton = document.createElement('button');
   processButton.textContent = 'Process';
   processButton.id = 'bulk-process-button';
@@ -620,7 +711,7 @@ function createBulkModeUI() {
     font-size: 12px;
     opacity: 0.5;
   `;
-  
+
   const cancelButton = document.createElement('button');
   cancelButton.textContent = '✕';
   cancelButton.id = 'bulk-cancel-button';
@@ -633,14 +724,16 @@ function createBulkModeUI() {
     cursor: pointer;
     font-size: 12px;
   `;
-  
+
   buttonRow.appendChild(counter);
   buttonRow.appendChild(selectAllButton);
+  buttonRow.appendChild(saveQueueButton);
   buttonRow.appendChild(processButton);
   buttonRow.appendChild(cancelButton);
-  
+
   container.appendChild(statusText);
   container.appendChild(annotationDisplay);
+  container.appendChild(accumulatedCounter);
   container.appendChild(buttonRow);
   
   document.body.appendChild(container);
@@ -681,11 +774,20 @@ function createBulkModeUI() {
       processBulkSelection(bulkAnnotationMode);
     }
   });
-  
+
   selectAllButton.addEventListener('click', () => {
     selectAllObservations();
   });
-  
+
+  saveQueueButton.addEventListener('click', async () => {
+    if (selectedObservations.size === 0) return;
+    await saveAsNamedQueue();
+    chrome.runtime.sendMessage({ action: 'queueUpdated' }, () => {
+      if (chrome.runtime.lastError) { /* popup may be closed */ }
+    });
+    exitBulkMode();
+  });
+
   cancelButton.addEventListener('click', () => {
     exitBulkMode();
   });
@@ -795,6 +897,7 @@ function selectAllObservations() {
   });
   
   console.log(`Selected ${selectedObservations.size} total observations`);
+  saveCurrentCollection();
   updateSelectionUI();
 }
 
@@ -814,15 +917,40 @@ function getAnnotationDisplayName(mode) {
   }
 }
 
+// Count how many selected observations are visible on the current page (deduplicated)
+function countPageSelections() {
+  const pageIds = new Set();
+  document.querySelectorAll('.thumbnail a[href*="/observations/"]').forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+    const raw = href.split('/observations/')[1];
+    if (!raw) return;
+    const id = raw.split('?')[0].split('#')[0];
+    if (/^\d+$/.test(id)) pageIds.add(id); // only numeric IDs (observation pages)
+  });
+  let count = 0;
+  pageIds.forEach(id => { if (selectedObservations.has(id)) count++; });
+  return count;
+}
+
 // Function to update selection UI
 function updateSelectionUI() {
   const counter = document.getElementById('selection-counter');
   const processButton = document.getElementById('bulk-process-button');
   const statusText = document.getElementById('bulk-status-text');
   const annotationDisplay = document.getElementById('annotation-display');
-  
+  const accumulatedCounter = document.getElementById('accumulated-counter');
+
   if (counter) {
-    counter.textContent = `${selectedObservations.size} selected`;
+    const pageCount = countPageSelections();
+    const totalCount = selectedObservations.size;
+    counter.textContent = `${pageCount} this page  |  ${totalCount} total`;
+  }
+
+  if (accumulatedCounter) {
+    const total = selectedObservations.size;
+    accumulatedCounter.textContent = total > 0 ? `${total} selected across pages` : '';
+    accumulatedCounter.style.display = total > 0 ? 'block' : 'none';
   }
   
   if (processButton) {
@@ -900,7 +1028,8 @@ function handleObservationClick(event, observationElement) {
     observationDiv.style.borderRadius = '8px';
     console.log('Selected observation:', observationId);
   }
-  
+
+  saveCurrentCollection();
   updateSelectionUI();
 }
 
@@ -1098,6 +1227,7 @@ async function processObservation(observationId, mode = 'adult-alive') {
 // Function to exit bulk mode
 function exitBulkMode() {
   console.log('Exiting bulk mode');
+  chrome.storage.local.remove([STORAGE_KEY_CURRENT]);
   bulkSelectionMode = false;
   bulkAnnotationMode = null;
   selectedObservations.clear();
@@ -1163,7 +1293,22 @@ window.addEventListener('message', (event) => {
 // Only initialize observation click handlers, don't show UI automatically
 if (isObservationsListPage()) {
   console.log('On supported observations list page');
-  
+
+  // Restore in-progress accumulator from storage (handles page navigation)
+  chrome.storage.local.get([STORAGE_KEY_CURRENT], result => {
+    const stored = result[STORAGE_KEY_CURRENT];
+    if (!stored || !stored.observations || !stored.observations.length) return;
+    selectedObservations = new Set(stored.observations);
+    bulkAnnotationMode = stored.annotationType;
+    bulkSelectionMode = true;
+    createBulkModeUI();
+    setupObservationClickHandlers();
+    setTimeout(() => {
+      highlightRestoredObservations();
+      updateSelectionUI();
+    }, 1000);
+  });
+
   // Re-setup handlers when page content changes (for pagination)
   let setupTimeout = null;
   const observer = new MutationObserver((mutations) => {

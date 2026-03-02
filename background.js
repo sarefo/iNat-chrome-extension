@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Will respond asynchronously
   } else if (request.action === 'processBulkObservationsStaggered') {
     // New staggered processing - track the sender tab ID
-    const sourceTabId = sender.tab.id;
+    const sourceTabId = sender.tab ? sender.tab.id : null;
     processBulkObservationsStaggered(request.observations, request.mode, sourceTabId)
       .then(results => sendResponse({success: true, results}))
       .catch(error => sendResponse({success: false, error: error.message}));
@@ -26,6 +26,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(result => sendResponse({success: true, result}))
       .catch(error => sendResponse({success: false, error: error.message}));
     return true; // Will respond asynchronously
+  } else if (request.action === 'processQueues') {
+    processQueuedObservations(request.queueIds)
+      .then(r => sendResponse({success: true, ...r}))
+      .catch(e => sendResponse({success: false, error: e.message}));
+    return true;
   }
 });
 
@@ -43,9 +48,10 @@ async function processBulkObservationsStaggered(observations, mode = 'adult-aliv
 
   // Function to send progress updates to the specific source tab
   const sendProgressUpdate = (isComplete = false) => {
+    if (!sourceTabId) return; // Queue processing has no source tab
     const elapsedTime = Date.now() - startTime;
     console.log(`Sending progress update: ${completed}/${observations.length} (${verified} verified, ${errors} errors) to tab ${sourceTabId}`);
-    
+
     chrome.tabs.sendMessage(sourceTabId, {
       action: 'bulkProcessingProgress',
       completed: completed,
@@ -401,4 +407,59 @@ async function processWebbFieldForObservation(url, fieldId, fieldValue, index, t
       }, 15000);
     });
   });
+}
+
+// Queue storage helpers
+async function getQueues() {
+  return new Promise(resolve => {
+    chrome.storage.local.get(['innat_queues'], data => resolve(data.innat_queues || []));
+  });
+}
+
+async function setQueues(queues) {
+  return new Promise(resolve => {
+    chrome.storage.local.set({ innat_queues: queues }, resolve);
+  });
+}
+
+async function updateQueueStatus(id, status) {
+  const queues = await getQueues();
+  const q = queues.find(q => q.id === id);
+  if (q) {
+    q.status = status;
+    await setQueues(queues);
+  }
+}
+
+// Process queued observations sequentially
+async function processQueuedObservations(queueIds) {
+  const queues = await getQueues();
+  const results = [];
+
+  for (const queueId of queueIds) {
+    const queue = queues.find(q => q.id === queueId);
+    if (!queue) {
+      console.warn(`Queue ${queueId} not found`);
+      continue;
+    }
+
+    console.log(`Processing queue ${queue.id}: ${queue.observations.length} observations with mode ${queue.annotationType}`);
+    await updateQueueStatus(queue.id, 'processing');
+
+    try {
+      const queueResults = await processBulkObservationsStaggered(
+        queue.observations,
+        queue.annotationType,
+        null // no source tab for queue processing
+      );
+      await updateQueueStatus(queue.id, 'completed');
+      results.push({ queueId, success: true, count: queueResults.length });
+    } catch (error) {
+      console.error(`Error processing queue ${queue.id}:`, error);
+      await updateQueueStatus(queue.id, 'pending');
+      results.push({ queueId, success: false, error: error.message });
+    }
+  }
+
+  return { results, processed: results.filter(r => r.success).length };
 }

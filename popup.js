@@ -457,7 +457,123 @@ document.addEventListener('DOMContentLoaded', function() {
       selectedAnnotationType = null;
       selectedCount = 0;
       updateBulkModeUI();
+    } else if (request.action === 'queueUpdated') {
+      loadQueues();
     }
+  });
+
+  // Queue management
+  const queueSection = document.getElementById('queueSection');
+  const queueList = document.getElementById('queueList');
+  const queueBadge = document.getElementById('queueBadge');
+  const processQueuesButton = document.getElementById('processQueuesButton');
+  let selectedQueueIds = new Set();
+
+  loadQueues();
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && (changes.innat_queues || changes.innat_current_collection)) {
+      loadQueues();
+    }
+  });
+
+  function loadQueues() {
+    chrome.storage.local.get(['innat_queues'], result => {
+      renderQueues(result.innat_queues || []);
+    });
+  }
+
+  function renderQueues(queues) {
+    if (!queues || queues.length === 0) {
+      queueSection.style.display = 'none';
+      return;
+    }
+
+    queueSection.style.display = 'block';
+    queueBadge.textContent = queues.length;
+    queueList.innerHTML = '';
+
+    queues.forEach(queue => {
+      const item = document.createElement('div');
+      item.className = 'queue-item';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selectedQueueIds.has(queue.id);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          selectedQueueIds.add(queue.id);
+        } else {
+          selectedQueueIds.delete(queue.id);
+        }
+        updateProcessQueuesButton(queues);
+      });
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'queue-item-name';
+      const statusSuffix = queue.status !== 'pending' ? ` [${queue.status}]` : '';
+      nameSpan.textContent = queue.name + statusSuffix;
+      nameSpan.title = queue.name;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'queue-item-delete';
+      deleteBtn.textContent = '×';
+      deleteBtn.title = 'Delete queue';
+      deleteBtn.addEventListener('click', () => {
+        selectedQueueIds.delete(queue.id);
+        deleteQueue(queue.id);
+      });
+
+      item.appendChild(checkbox);
+      item.appendChild(nameSpan);
+      item.appendChild(deleteBtn);
+      queueList.appendChild(item);
+    });
+
+    updateProcessQueuesButton(queues);
+  }
+
+  function updateProcessQueuesButton(queues) {
+    const checked = queues.filter(q => selectedQueueIds.has(q.id));
+    if (checked.length === 0) {
+      processQueuesButton.style.display = 'none';
+    } else {
+      const totalObs = checked.reduce((sum, q) => sum + q.observations.length, 0);
+      processQueuesButton.style.display = 'block';
+      processQueuesButton.textContent = `▶ Process Selected (${totalObs} obs)`;
+    }
+  }
+
+  function deleteQueue(id) {
+    chrome.storage.local.get(['innat_queues'], result => {
+      const queues = (result.innat_queues || []).filter(q => q.id !== id);
+      chrome.storage.local.set({ innat_queues: queues }, () => loadQueues());
+    });
+  }
+
+  processQueuesButton.addEventListener('click', () => {
+    const ids = Array.from(selectedQueueIds);
+    if (ids.length === 0) return;
+
+    statusDiv.textContent = 'Processing queues...';
+    statusDiv.style.color = '#FF9800';
+    processQueuesButton.disabled = true;
+
+    chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids }, response => {
+      processQueuesButton.disabled = false;
+      if (chrome.runtime.lastError || !response) {
+        statusDiv.textContent = 'Error starting queue processing';
+        statusDiv.style.color = 'red';
+      } else if (response.success) {
+        statusDiv.textContent = 'Queue processing complete!';
+        statusDiv.style.color = 'green';
+        selectedQueueIds.clear();
+        loadQueues();
+      } else {
+        statusDiv.textContent = `Error: ${response.error}`;
+        statusDiv.style.color = 'red';
+      }
+    });
   });
 
   usernameDisplay.addEventListener('click', function() {
