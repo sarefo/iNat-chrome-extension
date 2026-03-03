@@ -18,6 +18,9 @@
     "matches": ["*://*.inaturalist.org/*"],
     "js": [
       "content/bulk-storage.js",
+      "content/bulk-state.js",
+      "content/bulk-selection.js",
+      "content/bulk-processing.js",
       "content/annotation-filler.js",
       "content/bulk-ui.js",
       "content/content-main.js"
@@ -26,6 +29,9 @@
   "web_accessible_resources": [{
     "resources": [
       "content/bulk-storage.js",
+      "content/bulk-state.js",
+      "content/bulk-selection.js",
+      "content/bulk-processing.js",
       "content/annotation-filler.js",
       "content/bulk-ui.js",
       "content/content-main.js"
