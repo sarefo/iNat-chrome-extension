@@ -1,3 +1,49 @@
+function showAnnotatedToast() {
+  const existing = document.getElementById('innat-annotated-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'innat-annotated-toast';
+  toast.style.cssText = `
+    position: fixed; top: 16px; right: 16px; z-index: 999999;
+    background: #2e7d32; color: #fff; font-size: 14px; font-weight: 600;
+    border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; cursor: default;
+    animation: innat-fadein 0.2s ease;
+  `;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes innat-fadein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes innat-fadeout { from { opacity: 1; } to { opacity: 0; } }
+  `;
+  document.head.appendChild(style);
+
+  const label = document.createElement('span');
+  label.textContent = 'Annotated!';
+
+  const reloadBtn = document.createElement('button');
+  reloadBtn.textContent = 'Reload?';
+  reloadBtn.style.cssText = `
+    background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.5);
+    color: #fff; border-radius: 4px; padding: 2px 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  `;
+  reloadBtn.addEventListener('click', () => location.reload());
+
+  toast.appendChild(label);
+  toast.appendChild(reloadBtn);
+  document.body.appendChild(toast);
+
+  const dismiss = () => {
+    toast.style.animation = 'innat-fadeout 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  };
+
+  toast.addEventListener('click', e => { if (e.target !== reloadBtn) dismiss(); });
+}
+
 // Single message listener for all content script messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Message received in content script:', request.action);
@@ -89,59 +135,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   };
 
   if (fillActions[request.action]) {
-    const { mode, description } = fillActions[request.action];
-    console.log('Fill fields action matched:', request.action);
+    const { mode } = fillActions[request.action];
 
-    try {
-      if (!window.location.pathname.includes('/observations/')) {
-        console.log('Not on observation page, pathname:', window.location.pathname);
-        sendResponse({ success: false, error: 'Not on an observation page' });
-        return true;
-      }
-      console.log(`Attempting to fill fields for ${description} on page:`, window.location.href);
-
-      setTimeout(() => {
-        let fieldsFound = fillObservationFields(mode);
-        console.log(`Main method found ${fieldsFound} fields`);
-
-        setTimeout(() => {
-          const currentFilledCount = countFilledFields();
-          if (fieldsFound === 0 && currentFilledCount === 0) {
-            fieldsFound = fillObservationFieldsAlternative(mode);
-            console.log(`Alternative method found ${fieldsFound} fields`);
-          } else if (currentFilledCount > 0) {
-            console.log(`Skipping alternative method - ${currentFilledCount} fields already filled`);
-            fieldsFound = currentFilledCount;
-          }
-
-          setTimeout(() => {
-            const actuallyFilled = countFilledFields();
-            const expectedFields = getExpectedFieldCount(mode);
-            const minFieldsForSuccess = Math.max(1, Math.floor(expectedFields * 0.67));
-            const allFieldsFilled = actuallyFilled >= minFieldsForSuccess;
-
-            console.log(`Verification: Expected ${expectedFields} fields, actually filled ${actuallyFilled}. Min for success: ${minFieldsForSuccess}. Success: ${allFieldsFilled}`);
-
-            sendResponse({
-              success: true,
-              fieldsFound: actuallyFilled,
-              expectedFields: expectedFields,
-              message: `Processed ${description} - filled ${actuallyFilled}/${expectedFields} fields`,
-              url: window.location.href,
-              verified: allFieldsFilled,
-              lenientSuccess: true
-            });
-          }, 6000);
-        }, 500);
-      }, 1000);
-
-      return true; // Will respond asynchronously
-
-    } catch (error) {
-      console.error('Error filling fields:', error);
-      sendResponse({ success: false, error: error.message });
+    if (!window.location.pathname.includes('/observations/')) {
+      sendResponse({ success: false, error: 'Not on an observation page' });
       return true;
     }
+
+    const obsId = window.location.pathname.split('/observations/')[1]?.split('/')[0];
+    const jwt = document.querySelector('meta[name="inaturalist-api-token"]')?.content;
+
+    if (!obsId || !jwt) {
+      sendResponse({ success: false, error: 'Could not get observation ID or JWT' });
+      return true;
+    }
+
+    chrome.runtime.sendMessage({ action: 'annotateSingleObs', obsId, mode, jwt }, response => {
+      if (response?.success) {
+        showAnnotatedToast();
+      }
+      sendResponse(response || { success: false, error: 'No response from background' });
+    });
+
+    return true;
   }
 });
 

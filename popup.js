@@ -247,7 +247,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const queueList = document.getElementById('queueList');
   const queueBadge = document.getElementById('queueBadge');
   const processQueuesButton = document.getElementById('processQueuesButton');
+  const selectAllQueuesButton = document.getElementById('selectAllQueues');
   let selectedQueueIds = new Set();
+
+  selectAllQueuesButton.addEventListener('click', () => {
+    chrome.storage.local.get(['innat_queues'], result => {
+      const queues = result.innat_queues || [];
+      const allSelected = queues.every(q => selectedQueueIds.has(q.id));
+      if (allSelected) {
+        selectedQueueIds.clear();
+      } else {
+        queues.forEach(q => selectedQueueIds.add(q.id));
+      }
+      renderQueues(queues);
+    });
+  });
 
   loadQueues();
 
@@ -271,6 +285,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     queueSection.style.display = 'block';
     queueBadge.textContent = queues.length;
+    const allSelected = queues.every(q => selectedQueueIds.has(q.id));
+    selectAllQueuesButton.textContent = allSelected ? 'Deselect All' : 'Select All';
     queueList.innerHTML = '';
 
     queues.forEach(queue => {
@@ -291,7 +307,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'queue-item-name';
-      const statusSuffix = queue.status !== 'pending' ? ` [${queue.status}]` : '';
+      let statusSuffix = '';
+      if (queue.status === 'processing') {
+        const done = queue.processedObservations?.length || 0;
+        statusSuffix = ` [${done}/${queue.observations.length}]`;
+      } else if (queue.status !== 'pending') {
+        statusSuffix = ` [${queue.status}]`;
+      }
       nameSpan.textContent = queue.name + statusSuffix;
       nameSpan.title = queue.name;
 
