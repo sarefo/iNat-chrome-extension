@@ -445,6 +445,20 @@ function handleObservationClick(event, observationElement) {
   const observationId = href.split('/observations/')[1].split('?')[0].split('#')[0];
   console.log('Observation ID:', observationId);
 
+  if (event.ctrlKey) {
+    // Ctrl+click: deselect (if selected) and open in new tab
+    if (selectedObservations.has(observationId)) {
+      selectedObservations.delete(observationId);
+      observationDiv.style.border = '';
+      observationDiv.style.boxShadow = '';
+      observationDiv.style.borderRadius = '';
+      saveCurrentCollection();
+      updateSelectionUI();
+    }
+    window.open(`https://www.inaturalist.org/observations/${observationId}`, '_blank');
+    return;
+  }
+
   if (selectedObservations.has(observationId)) {
     selectedObservations.delete(observationId);
     observationDiv.style.border = '';
@@ -461,6 +475,34 @@ function handleObservationClick(event, observationElement) {
 
   saveCurrentCollection();
   updateSelectionUI();
+}
+
+// Ctrl+right-click: deselect (if selected) and open observation in new tab
+function handleObservationContextMenu(event, observationElement) {
+  if (!bulkSelectionMode) return;
+  if (!event.ctrlKey) return; // only intercept Ctrl+right-click
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const href = observationElement.getAttribute('href');
+  if (!href || !href.includes('/observations/')) return;
+
+  const observationDiv = observationElement.closest('.observation.observation-grid-cell');
+  const observationId = href.split('/observations/')[1].split('?')[0].split('#')[0];
+
+  if (selectedObservations.has(observationId)) {
+    selectedObservations.delete(observationId);
+    if (observationDiv) {
+      observationDiv.style.border = '';
+      observationDiv.style.boxShadow = '';
+      observationDiv.style.borderRadius = '';
+    }
+    saveCurrentCollection();
+    updateSelectionUI();
+  }
+
+  window.open(`https://www.inaturalist.org/observations/${observationId}`, '_blank');
 }
 
 // Function to process bulk selection
@@ -665,8 +707,12 @@ function setupObservationClickHandlers() {
     element._clickHandler = (event) => {
       handleObservationClick(event, element);
     };
+    element._contextMenuHandler = (event) => {
+      handleObservationContextMenu(event, element);
+    };
 
     element.addEventListener('click', element._clickHandler);
+    element.addEventListener('contextmenu', element._contextMenuHandler);
     element._hasClickHandler = true;
   });
 }
