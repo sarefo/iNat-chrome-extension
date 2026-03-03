@@ -8,7 +8,13 @@
       "mcp__puppeteer__puppeteer_navigate",
       "mcp__puppeteer__puppeteer_evaluate",
       "mcp__puppeteer__puppeteer_screenshot",
-      "WebFetch(domain:wsc.nmbe.ch)"
+      "WebFetch(domain:wsc.nmbe.ch)",
+      "WebSearch",
+      "WebFetch(domain:api.inaturalist.org)",
+      "WebFetch(domain:forum.inaturalist.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pyinaturalist.readthedocs.io)",
+      "WebFetch(domain:inaturalist.ala.org.au)"
     ],
     "deny": []
   }
