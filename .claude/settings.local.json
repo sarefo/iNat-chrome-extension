@@ -14,7 +14,8 @@
       "WebFetch(domain:forum.inaturalist.org)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:pyinaturalist.readthedocs.io)",
-      "WebFetch(domain:inaturalist.ala.org.au)"
+      "WebFetch(domain:inaturalist.ala.org.au)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
