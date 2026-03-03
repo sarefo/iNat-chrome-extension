@@ -152,17 +152,37 @@ if (isObservationsListPage()) {
   // Restore in-progress accumulator from storage (handles page navigation)
   chrome.storage.local.get([STORAGE_KEY_CURRENT], result => {
     const stored = result[STORAGE_KEY_CURRENT];
-    if (!stored || !stored.observations || !stored.observations.length) return;
-    selectedObservations = new Set(stored.observations);
+    if (!stored || !stored.annotationType) return; // annotation type is enough to restore
+    selectedObservations = new Set(stored.observations || []);
     bulkAnnotationMode = stored.annotationType;
     bulkSelectionMode = true;
-    createBulkModeUI();
-    setupObservationClickHandlers();
-    setTimeout(() => {
-      highlightRestoredObservations();
-      updateSelectionUI();
-    }, 1000);
+    // Wait for iNat to render observations before creating UI + auto-scrolling.
+    // On next-page navigation the storage callback fires before React has populated
+    // the grid, so auto-scroll would complete instantly on an empty page.
+    waitForObservations(() => {
+      createBulkModeUI();
+      setupObservationClickHandlers();
+      setTimeout(() => {
+        highlightRestoredObservations();
+        updateSelectionUI();
+      }, 500);
+    });
   });
+
+  function waitForObservations(callback, maxWaitMs = 10000) {
+    const deadline = Date.now() + maxWaitMs;
+    function check() {
+      if (document.querySelectorAll('.thumbnail a[href*="/observations/"]').length > 0) {
+        callback();
+      } else if (Date.now() < deadline) {
+        setTimeout(check, 300);
+      } else {
+        console.log('waitForObservations timed out, proceeding anyway');
+        callback();
+      }
+    }
+    check();
+  }
 
   // Re-setup handlers when page content changes (for pagination)
   let setupTimeout = null;

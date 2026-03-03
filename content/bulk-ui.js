@@ -253,6 +253,20 @@ function createBulkModeUI() {
     font-size: 12px;
   `;
 
+  const nextPageButton = document.createElement('button');
+  nextPageButton.textContent = 'Next Page →';
+  nextPageButton.id = 'bulk-next-page-button';
+  nextPageButton.style.cssText = `
+    background: #9C27B0;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    width: 100%;
+  `;
+
   buttonRow.appendChild(counter);
   buttonRow.appendChild(selectAllButton);
   buttonRow.appendChild(saveQueueButton);
@@ -263,6 +277,7 @@ function createBulkModeUI() {
   container.appendChild(annotationDisplay);
   container.appendChild(accumulatedCounter);
   container.appendChild(buttonRow);
+  container.appendChild(nextPageButton);
 
   document.body.appendChild(container);
   bulkModeButtons = container;
@@ -318,6 +333,10 @@ function createBulkModeUI() {
 
   cancelButton.addEventListener('click', () => {
     exitBulkMode();
+  });
+
+  nextPageButton.addEventListener('click', () => {
+    goToNextPage();
   });
 }
 
@@ -691,6 +710,24 @@ function exitBulkMode() {
     if (chrome.runtime.lastError) {
       // Silently ignore
     }
+  });
+}
+
+// Navigate to the next page, preserving bulk mode state across the navigation
+function goToNextPage() {
+  const url = new URL(window.location.href);
+  const currentPage = parseInt(url.searchParams.get('page') || '1');
+  url.searchParams.set('page', currentPage + 1);
+
+  // Persist annotation type + current selections before navigating
+  // (saves even with 0 obs so bulk mode is restored on the new page)
+  const data = {
+    annotationType: bulkAnnotationMode,
+    observations: Array.from(selectedObservations),
+    lastUpdated: Date.now()
+  };
+  chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
+    window.location.href = url.toString();
   });
 }
 
