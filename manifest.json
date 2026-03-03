@@ -3,29 +3,33 @@
   "name": "iNaturalist Auto Filler",
   "version": "1.0",
   "description": "Auto-fills common iNaturalist observation fields",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "tabs"
-  ],
+  "permissions": ["activeTab", "storage", "tabs"],
+  "host_permissions": ["https://api.inaturalist.org/*"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/background-main.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Fill iNaturalist Fields",
     "default_icon": "iNat-favicon.png"
   },
-  "content_scripts": [
-    {
-      "matches": ["*://*.inaturalist.org/*"],
-      "js": ["content.js"]
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["content.js"],
-      "matches": ["*://*.inaturalist.org/*"]
-    }
-  ]
+  "content_scripts": [{
+    "matches": ["*://*.inaturalist.org/*"],
+    "js": [
+      "content/bulk-storage.js",
+      "content/annotation-filler.js",
+      "content/bulk-ui.js",
+      "content/content-main.js"
+    ]
+  }],
+  "web_accessible_resources": [{
+    "resources": [
+      "content/bulk-storage.js",
+      "content/annotation-filler.js",
+      "content/bulk-ui.js",
+      "content/content-main.js"
+    ],
+    "matches": ["*://*.inaturalist.org/*"]
+  }]
 }

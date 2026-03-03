@@ -1,26 +1,29 @@
 document.addEventListener('DOMContentLoaded', function() {
-  const fillButtonAlive = document.getElementById('fillFieldsAlive');
-  const fillButtonDead = document.getElementById('fillFieldsDead');
-  const fillButtonJuvenile = document.getElementById('fillFieldsJuvenile');
-  const fillButtonJuvenileDead = document.getElementById('fillFieldsJuvenileDead');
-  const fillButtonAgeUnknown = document.getElementById('fillFieldsAgeUnknown');
-  const fillButtonFlowers = document.getElementById('fillFieldsFlowers');
-  const fillButtonFruits = document.getElementById('fillFieldsFruits');
-  const fillButtonNoFlowersFruits = document.getElementById('fillFieldsNoFlowersFruits');
   const openUrlButton = document.getElementById('openUrl');
   const toggleBulkModeButton = document.getElementById('toggleBulkMode');
   const bulkCounter = document.getElementById('bulkCounter');
   const startBulkProcessButton = document.getElementById('startBulkProcess');
-  const webbButton = document.getElementById('webbButton');
   const statusDiv = document.getElementById('status');
-  
+
   let bulkModeActive = false;
   let selectedAnnotationType = null;
   let selectedCount = 0;
-  
+
+  // Annotation button definitions
+  const ANNOTATION_BUTTONS = [
+    { id: 'fillFieldsAgeUnknown',      mode: 'age-unknown',             action: 'fillFieldsAgeUnknown',           label: 'Age Unknown' },
+    { id: 'fillFieldsJuvenile',        mode: 'juvenile',                action: 'fillFieldsJuvenile',             label: 'Juvenile' },
+    { id: 'fillFieldsAlive',           mode: 'adult-alive',             action: 'fillFieldsAlive',                label: 'Adult Live' },
+    { id: 'fillFieldsDead',            mode: 'adult-dead',              action: 'fillFieldsDead',                 label: 'Adult Dead' },
+    { id: 'fillFieldsJuvenileDead',    mode: 'juvenile-dead',           action: 'fillFieldsJuvenileDead',         label: 'Juvenile Dead' },
+    { id: 'fillFieldsFlowers',         mode: 'plant-flowers',           action: 'fillFieldsPlantFlowers',         label: 'Flowers' },
+    { id: 'fillFieldsFruits',          mode: 'plant-fruits',            action: 'fillFieldsPlantFruits',          label: 'Fruits' },
+    { id: 'fillFieldsNoFlowersFruits', mode: 'plant-no-flowers-fruits', action: 'fillFieldsPlantNoFlowersFruits', label: 'No Flowers/Fruits' },
+  ];
+
   // Check if bulk mode is already active when popup opens
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, {action: 'getBulkModeStatus'}, function(response) {
+  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+    chrome.tabs.sendMessage(tabs[0].id, { action: 'getBulkModeStatus' }, function(response) {
       if (response && response.active) {
         bulkModeActive = true;
         selectedAnnotationType = response.annotationType;
@@ -29,32 +32,23 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
   const usernameDisplay = document.getElementById('username-display');
   const usernameInput = document.getElementById('username-input');
-  
+
   let currentUsername = 'portioid';
-  
+
   if (!usernameDisplay || !usernameInput) {
     console.error('Username elements not found');
     return;
   }
-  
+
   chrome.storage.sync.get(['username'], function(result) {
     if (result.username !== undefined) {
       currentUsername = result.username;
       usernameDisplay.textContent = currentUsername || '(no username)';
     }
   });
-
-  // Normal functionality for fillButtonAlive is now handled above in the bulk mode section
-
-  // Normal functionality for fillButtonDead is now handled above in the bulk mode section
-
-  // Normal functionality for fillButtonJuvenile is now handled above in the bulk mode section
-
-  // Normal functionality for fillButtonJuvenileDead is now handled above in the bulk mode section
-
-  // Normal functionality for fillButtonAgeUnknown is now handled above in the bulk mode section
 
   openUrlButton.addEventListener('click', function() {
     const baseUrl = 'https://www.inaturalist.org/observations?taxon_id=1';
@@ -63,29 +57,33 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.create({ url });
   });
 
-  webbButton.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      // In bulk mode - set Webb as the annotation type
-      e.preventDefault();
-      selectAnnotationButton(webbButton, 'webb', 'Webb (Organism + Original observer)');
-      return;
-    }
+  // Data-driven annotation button handlers
+  ANNOTATION_BUTTONS.forEach(({ id, mode, action, label }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
 
-    // Single observation mode
-    statusDiv.textContent = 'Adding Webb field...';
+    btn.addEventListener('click', function(e) {
+      if (bulkModeActive) {
+        e.preventDefault();
+        selectAnnotationButton(btn, mode, label);
+        return;
+      }
 
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'addWebbFieldSingle'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Make sure you\'re on an iNaturalist observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Webb field added successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response ? response.message : 'Could not add Webb field';
-          statusDiv.style.color = 'orange';
-        }
+      statusDiv.textContent = 'Filling fields...';
+
+      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { action }, function(response) {
+          if (chrome.runtime.lastError) {
+            statusDiv.textContent = 'Error: Must be on a single observation page';
+            statusDiv.style.color = 'red';
+          } else if (response && response.success) {
+            statusDiv.textContent = 'Fields filled successfully!';
+            statusDiv.style.color = 'green';
+          } else {
+            statusDiv.textContent = response?.error || 'Could not find fields to fill';
+            statusDiv.style.color = 'orange';
+          }
+        });
       });
     });
   });
@@ -94,9 +92,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bulkModeActive) {
       // Exit bulk mode
       statusDiv.textContent = 'Exiting bulk mode...';
-      
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleBulkMode'}, function(response) {
+
+      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleBulkMode' }, function(response) {
           bulkModeActive = false;
           selectedAnnotationType = null;
           selectedCount = 0;
@@ -106,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
     } else {
-      // Enter bulk mode - just update UI, don't create overlay yet
+      // Enter bulk mode
       bulkModeActive = true;
       selectedAnnotationType = null;
       selectedCount = 0;
@@ -115,18 +113,18 @@ document.addEventListener('DOMContentLoaded', function() {
       statusDiv.style.color = '#666';
     }
   });
-  
+
   // Function to update bulk mode UI
   function updateBulkModeUI() {
     if (bulkModeActive) {
       document.body.classList.add('bulk-mode-active');
       toggleBulkModeButton.textContent = 'Exit Bulk Mode';
       toggleBulkModeButton.style.backgroundColor = '#f44336';
-      
+
       if (selectedAnnotationType) {
         bulkCounter.classList.add('active');
         bulkCounter.textContent = `${selectedCount} observations selected`;
-        
+
         // Highlight the selected annotation button
         clearButtonSelections();
         const button = getButtonForMode(selectedAnnotationType);
@@ -134,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
           button.style.border = '3px solid #4CAF50';
           button.style.transform = 'scale(1.05)';
         }
-        
+
         if (selectedCount > 0) {
           startBulkProcessButton.classList.add('active');
           statusDiv.textContent = `Step 3: Click "Start Processing" to process ${selectedCount} observations`;
@@ -158,259 +156,41 @@ document.addEventListener('DOMContentLoaded', function() {
       clearButtonSelections();
     }
   }
-  
+
   // Function to get button element for mode
   function getButtonForMode(mode) {
-    switch(mode) {
-      case 'adult-alive': return fillButtonAlive;
-      case 'adult-dead': return fillButtonDead;
-      case 'juvenile': return fillButtonJuvenile;
-      case 'juvenile-dead': return fillButtonJuvenileDead;
-      case 'age-unknown': return fillButtonAgeUnknown;
-      case 'webb': return webbButton;
-      case 'plant-flowers': return fillButtonFlowers;
-      case 'plant-fruits': return fillButtonFruits;
-      case 'plant-no-flowers-fruits': return fillButtonNoFlowersFruits;
-      default: return null;
-    }
+    const btn = ANNOTATION_BUTTONS.find(b => b.mode === mode);
+    return btn ? document.getElementById(btn.id) : null;
   }
-  
+
   // Function to clear button selections
   function clearButtonSelections() {
-    [fillButtonAlive, fillButtonDead, fillButtonJuvenile, fillButtonJuvenileDead, fillButtonAgeUnknown, webbButton, fillButtonFlowers, fillButtonFruits, fillButtonNoFlowersFruits].forEach(button => {
-      if (button) {
-        button.style.border = '';
-        button.style.transform = '';
+    ANNOTATION_BUTTONS.forEach(({ id }) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.style.border = '';
+        btn.style.transform = '';
       }
     });
   }
-  
+
   // Function to select annotation button
   function selectAnnotationButton(button, mode, description) {
     if (!bulkModeActive) return;
-    
+
     selectedAnnotationType = mode;
     statusDiv.textContent = `Step 2: Selected ${description}. Now click observations on the page.`;
     statusDiv.style.color = '#4CAF50';
-    
+
     // Send annotation type to content script
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'setBulkAnnotationType', mode: mode}, function(response) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'setBulkAnnotationType', mode: mode }, function(response) {
         if (response && response.success) {
           updateBulkModeUI();
         }
       });
     });
   }
-  
-  // Add click handlers to existing annotation buttons for bulk mode
-  fillButtonAlive.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonAlive, 'adult-alive', 'Adult Live');
-      return;
-    }
-    
-    // Normal functionality
-    statusDiv.textContent = 'Filling fields...';
-    
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsAlive'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-  
-  fillButtonDead.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonDead, 'adult-dead', 'Adult Dead');
-      return;
-    }
-    
-    // Normal functionality
-    statusDiv.textContent = 'Filling fields...';
-    
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsDead'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-  
-  fillButtonJuvenile.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonJuvenile, 'juvenile', 'Juvenile');
-      return;
-    }
-    
-    // Normal functionality
-    statusDiv.textContent = 'Filling fields...';
-    
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsJuvenile'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-  
-  fillButtonJuvenileDead.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonJuvenileDead, 'juvenile-dead', 'Juvenile Dead');
-      return;
-    }
-    
-    // Normal functionality
-    statusDiv.textContent = 'Filling fields...';
-    
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsJuvenileDead'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-  
-  fillButtonAgeUnknown.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonAgeUnknown, 'age-unknown', 'Age Unknown');
-      return;
-    }
-
-    // Normal functionality
-    statusDiv.textContent = 'Filling fields...';
-
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsAgeUnknown'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-
-  fillButtonFlowers.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonFlowers, 'plant-flowers', 'Flowers + Green Leaves');
-      return;
-    }
-
-    // Normal functionality
-    statusDiv.textContent = 'Filling plant phenology fields...';
-
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsPlantFlowers'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Plant fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-
-  fillButtonFruits.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonFruits, 'plant-fruits', 'Fruits/Seeds + Green Leaves');
-      return;
-    }
-
-    // Normal functionality
-    statusDiv.textContent = 'Filling plant phenology fields...';
-
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsPlantFruits'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Plant fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-
-  fillButtonNoFlowersFruits.addEventListener('click', function(e) {
-    if (bulkModeActive) {
-      e.preventDefault();
-      selectAnnotationButton(fillButtonNoFlowersFruits, 'plant-no-flowers-fruits', 'No Flowers/Fruits + Green Leaves');
-      return;
-    }
-
-    // Normal functionality
-    statusDiv.textContent = 'Filling plant phenology fields...';
-
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'fillFieldsPlantNoFlowersFruits'}, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error: Must be on a single observation page';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = 'Plant fields filled successfully!';
-          statusDiv.style.color = 'green';
-        } else {
-          statusDiv.textContent = response?.error || 'Could not find fields to fill';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
 
   // Start bulk processing button
   startBulkProcessButton.addEventListener('click', function() {
@@ -419,12 +199,12 @@ document.addEventListener('DOMContentLoaded', function() {
       statusDiv.style.color = 'red';
       return;
     }
-    
+
     statusDiv.textContent = `Processing ${selectedCount} observations...`;
     statusDiv.style.color = '#FF9800';
-    
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'processBulkSelection', mode: selectedAnnotationType}, function(response) {
+
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'processBulkSelection', mode: selectedAnnotationType }, function(response) {
         if (chrome.runtime.lastError) {
           statusDiv.textContent = 'Error processing observations';
           statusDiv.style.color = 'red';
@@ -443,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   });
-  
+
   // Listen for bulk mode updates from content script
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'bulkModeUpdate') {
@@ -559,20 +339,26 @@ document.addEventListener('DOMContentLoaded', function() {
     statusDiv.style.color = '#FF9800';
     processQueuesButton.disabled = true;
 
-    chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids }, response => {
-      processQueuesButton.disabled = false;
-      if (chrome.runtime.lastError || !response) {
-        statusDiv.textContent = 'Error starting queue processing';
-        statusDiv.style.color = 'red';
-      } else if (response.success) {
-        statusDiv.textContent = 'Queue processing complete!';
-        statusDiv.style.color = 'green';
-        selectedQueueIds.clear();
-        loadQueues();
-      } else {
-        statusDiv.textContent = `Error: ${response.error}`;
-        statusDiv.style.color = 'red';
-      }
+    // Get JWT from the current tab before handing off to background
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'getJwt' }, jwtResponse => {
+        const jwt = jwtResponse?.jwt || null;
+        chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids, jwt }, response => {
+          processQueuesButton.disabled = false;
+          if (chrome.runtime.lastError || !response) {
+            statusDiv.textContent = 'Error starting queue processing';
+            statusDiv.style.color = 'red';
+          } else if (response.success) {
+            statusDiv.textContent = 'Queue processing complete!';
+            statusDiv.style.color = 'green';
+            selectedQueueIds.clear();
+            loadQueues();
+          } else {
+            statusDiv.textContent = `Error: ${response.error}`;
+            statusDiv.style.color = 'red';
+          }
+        });
+      });
     });
   });
 
@@ -589,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const newUsername = usernameInput.value.trim();
     currentUsername = newUsername;
     usernameDisplay.textContent = currentUsername || '(no username)';
-    chrome.storage.sync.set({username: currentUsername});
+    chrome.storage.sync.set({ username: currentUsername });
     usernameInput.style.display = 'none';
     usernameDisplay.style.display = 'block';
   }
