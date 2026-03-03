@@ -22,8 +22,30 @@ async function updateQueueStatus(id, status) {
   }
 }
 
+// Mark a single observation as processed within a queue (persisted for crash recovery)
+async function markObservationProcessed(queueId, obsId) {
+  const queues = await getQueues();
+  const q = queues.find(q => q.id === queueId);
+  if (q) {
+    if (!q.processedObservations) q.processedObservations = [];
+    if (!q.processedObservations.includes(obsId)) q.processedObservations.push(obsId);
+    await setQueues(queues);
+  }
+}
+
+// Reset any queue stuck in 'processing' (e.g. from a previous browser crash) back to 'pending'
+async function resetStuckQueues() {
+  const queues = await getQueues();
+  const stuck = queues.filter(q => q.status === 'processing');
+  if (stuck.length === 0) return;
+  stuck.forEach(q => { q.status = 'pending'; });
+  await setQueues(queues);
+}
+
 // Process queued observations sequentially (exported for background-main.js)
 export async function processQueuedObservations(queueIds, jwt) {
+  await resetStuckQueues();
+
   const queues = await getQueues();
   const results = [];
 
@@ -34,15 +56,20 @@ export async function processQueuedObservations(queueIds, jwt) {
       continue;
     }
 
-    console.log(`Processing queue ${queue.id}: ${queue.observations.length} observations with mode ${queue.annotationType}`);
+    // Skip observations already processed (crash recovery)
+    const alreadyDone = new Set(queue.processedObservations || []);
+    const remaining = queue.observations.filter(id => !alreadyDone.has(id));
+
+    console.log(`Processing queue ${queue.id}: ${remaining.length} remaining (${alreadyDone.size} already done) with mode ${queue.annotationType}`);
     await updateQueueStatus(queue.id, 'processing');
 
     try {
       const queueResults = await processBulkObservationsViaApi(
-        queue.observations,
+        remaining,
         queue.annotationType,
         null, // no source tab for queue processing
-        jwt
+        jwt,
+        (obsId) => markObservationProcessed(queue.id, obsId)
       );
       await updateQueueStatus(queue.id, 'completed');
       results.push({ queueId, success: true, count: queueResults.length });

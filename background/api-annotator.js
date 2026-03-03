@@ -105,9 +105,27 @@ async function annotateObservationViaApi(obsId, mode, jwt) {
   };
 }
 
+// Annotate a single observation with all annotations fired in parallel
+export async function annotateSingleObsViaApi(obsId, mode, jwt) {
+  const config = ANNOTATION_CONFIGS[mode];
+  if (!config) throw new Error(`Unknown annotation mode: ${mode}`);
+
+  const results = await Promise.all(
+    config.map(({ a: attrId, v: valueId }) =>
+      postAnnotation(jwt, obsId, attrId, valueId)
+        .then(() => ({ attrId, valueId, success: true }))
+        .catch(err => ({ attrId, valueId, success: false, error: err.message }))
+    )
+  );
+
+  const allSuccess = results.every(r => r.success);
+  return { observationId: obsId, success: allSuccess, results };
+}
+
 // Process multiple observations via API (exported for background-main.js)
 // jwt is passed directly from the content script; falls back to tab query if not provided
-export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt) {
+// onProgress(obsId) is called after each observation completes (optional)
+export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress) {
   const startTime = Date.now();
   if (!jwt) {
     jwt = await getJwtFromInatTab(); // fallback for queue processing
@@ -162,6 +180,7 @@ export async function processBulkObservationsViaApi(observations, mode, sourceTa
       }
     }
     completed++;
+    if (onProgress) onProgress(obsId);
     sendProgressUpdate(false);
   }
 

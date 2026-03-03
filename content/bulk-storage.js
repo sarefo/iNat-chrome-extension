@@ -40,7 +40,10 @@ async function saveAsNamedQueue() {
   if (!observations.length || !bulkAnnotationMode) return null;
 
   const id = `q_${Date.now()}`;
-  const name = `${getAnnotationDisplayName(bulkAnnotationMode)} (${observations.length})`;
+  const params = new URLSearchParams(window.location.search);
+  const taxon = params.get('taxon_name') || params.get('taxon_id') || '';
+  const taxonPrefix = taxon ? `${taxon} · ` : '';
+  const name = `${taxonPrefix}${getAnnotationDisplayName(bulkAnnotationMode)} (${observations.length})`;
   const queue = {
     id,
     name,

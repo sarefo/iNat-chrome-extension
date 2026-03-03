@@ -23,17 +23,7 @@ function showAnnotatedToast() {
   const label = document.createElement('span');
   label.textContent = 'Annotated!';
 
-  const reloadBtn = document.createElement('button');
-  reloadBtn.textContent = 'Reload?';
-  reloadBtn.style.cssText = `
-    background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.5);
-    color: #fff; border-radius: 4px; padding: 2px 8px;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-  `;
-  reloadBtn.addEventListener('click', () => location.reload());
-
   toast.appendChild(label);
-  toast.appendChild(reloadBtn);
   document.body.appendChild(toast);
 
   const dismiss = () => {
@@ -41,7 +31,102 @@ function showAnnotatedToast() {
     setTimeout(() => toast.remove(), 300);
   };
 
-  toast.addEventListener('click', e => { if (e.target !== reloadBtn) dismiss(); });
+  setTimeout(dismiss, 3000);
+  toast.addEventListener('click', dismiss);
+}
+
+// Labels we know iNat displays for each mode — used as immediate fallback
+const ANNOTATION_DISPLAY_LABELS = {
+  'adult-alive':             { 'Life Stage': 'Adult',    'Alive or Dead': 'Alive', 'Evidence of Presence': 'Organism' },
+  'adult-dead':              { 'Life Stage': 'Adult',    'Alive or Dead': 'Dead',  'Evidence of Presence': 'Organism' },
+  'juvenile':                { 'Life Stage': 'Juvenile', 'Alive or Dead': 'Alive', 'Evidence of Presence': 'Organism' },
+  'juvenile-dead':           { 'Life Stage': 'Juvenile', 'Alive or Dead': 'Dead',  'Evidence of Presence': 'Organism' },
+  'age-unknown':             {                           'Alive or Dead': 'Alive', 'Evidence of Presence': 'Organism' },
+  'plant-flowers':           { 'Flowers': 'Flowers',          'Fruit': 'Flowers',          'Leaves': 'Green Leaves' },
+  'plant-fruits':            { 'Flowers': 'Fruits or Seeds',  'Fruit': 'Fruits or Seeds',  'Leaves': 'Green Leaves' },
+  'plant-no-flowers-fruits': { 'Flowers': 'No Flowers or Fruits', 'Fruit': 'No Flowers or Fruits', 'Leaves': 'Green Leaves' },
+};
+
+function applyAnnotationLabelsToDOM(labelMap) {
+  const annotationsTable = document.querySelector('.Annotations table');
+  console.log('[iNat ext] .Annotations table found:', !!annotationsTable);
+  if (!annotationsTable) return false;
+
+  const rows = annotationsTable.querySelectorAll('tbody tr');
+  console.log('[iNat ext] annotation rows found:', rows.length);
+  let updated = 0;
+
+  rows.forEach(row => {
+    const attrDiv = row.querySelector('td.attribute div');
+    if (!attrDiv) return;
+
+    const attrLabel = (attrDiv.getAttribute('title') || attrDiv.textContent).trim();
+    const matchKey = Object.keys(labelMap).find(k => attrLabel.includes(k));
+    if (!matchKey) { console.log('[iNat ext] no label match for attr:', attrLabel); return; }
+
+    const valueLabel = labelMap[matchKey];
+    console.log('[iNat ext] updating', attrLabel, '->', valueLabel);
+
+    // If already showing a value label (already annotated state), update it
+    const valueSpan = row.querySelector('td.value span.value-label');
+    if (valueSpan) {
+      valueSpan.textContent = valueLabel;
+      updated++;
+      return;
+    }
+
+    // If showing a dropdown button (unannotated state), update its label
+    const dropdown = row.querySelector('button.dropdown-toggle');
+    if (dropdown) {
+      // Try a non-whitespace text node first (classic Bootstrap: "Select <span class=caret>")
+      let found = false;
+      for (const node of dropdown.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+          node.textContent = valueLabel + ' ';
+          found = true;
+          break;
+        }
+      }
+      // Fall back to updating the non-caret child span (React style: "<span>Select</span><span class=caret>")
+      if (!found) {
+        const labelSpan = [...dropdown.children].find(el => !el.classList.contains('caret'));
+        if (labelSpan) labelSpan.textContent = valueLabel;
+      }
+      updated++;
+    }
+  });
+
+  console.log('[iNat ext] updated', updated, 'annotation rows');
+  return updated > 0;
+}
+
+function refreshAnnotationSection(obsId, mode) {
+  // Apply immediately from known mode labels (no timing dependency)
+  const knownLabels = ANNOTATION_DISPLAY_LABELS[mode];
+  if (knownLabels) {
+    console.log('[iNat ext] applying mode-based labels immediately for mode:', mode);
+    applyAnnotationLabelsToDOM(knownLabels);
+  }
+
+  // Also fetch from API after a short delay to get accurate labels (e.g. exact juvenile stage)
+  setTimeout(() => {
+    fetch(`https://api.inaturalist.org/v1/observations/${obsId}`)
+      .then(r => r.json())
+      .then(data => {
+        const annotations = data.results?.[0]?.annotations;
+        console.log('[iNat ext] API returned', annotations?.length ?? 0, 'annotations');
+        if (!annotations?.length) return;
+
+        const apiLabelMap = {};
+        annotations.forEach(a => {
+          if (a.controlled_attribute?.label && a.controlled_value?.label) {
+            apiLabelMap[a.controlled_attribute.label] = a.controlled_value.label;
+          }
+        });
+        applyAnnotationLabelsToDOM(apiLabelMap);
+      })
+      .catch(err => console.warn('[iNat ext] Could not refresh annotation section:', err));
+  }, 800);
 }
 
 // Single message listener for all content script messages
@@ -153,6 +238,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.runtime.sendMessage({ action: 'annotateSingleObs', obsId, mode, jwt }, response => {
       if (response?.success) {
         showAnnotatedToast();
+        refreshAnnotationSection(obsId, mode);
       }
       sendResponse(response || { success: false, error: 'No response from background' });
     });
