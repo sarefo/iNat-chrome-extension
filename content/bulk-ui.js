@@ -234,11 +234,13 @@ function createBulkModeUI() {
     border-radius: 4px;
     cursor: pointer;
     font-size: 11px;
-    width: 100%;
+    white-space: nowrap;
+    display: none;
   `;
 
   buttonRow.appendChild(counter);
   buttonRow.appendChild(selectAllButton);
+  buttonRow.appendChild(nextPageButton);
   buttonRow.appendChild(saveQueueButton);
   buttonRow.appendChild(processButton);
   buttonRow.appendChild(cancelButton);
@@ -247,7 +249,6 @@ function createBulkModeUI() {
   container.appendChild(annotationDisplay);
   container.appendChild(accumulatedCounter);
   container.appendChild(buttonRow);
-  container.appendChild(nextPageButton);
 
   document.body.appendChild(container);
   bulkModeButtons = container;
@@ -262,6 +263,19 @@ function createBulkModeUI() {
     statusText.style.color = '#FF9800';
   }
 
+  function updateNextPageButton() {
+    // Try pagination DOM selectors first
+    if (document.querySelector('a[rel="next"]') ||
+        document.querySelector('.pagination li.next:not(.disabled) a')) {
+      nextPageButton.style.display = 'inline-block';
+      return;
+    }
+    // Fallback: iNat shows 96 obs per page; a full page means there are more
+    const perPage = parseInt(new URL(window.location.href).searchParams.get('per_page') || '96');
+    const obsCount = document.querySelectorAll('.thumbnail a[href*="/observations/"]').length;
+    nextPageButton.style.display = obsCount >= perPage ? 'inline-block' : 'none';
+  }
+
   autoScrollToRevealAllObservations().then(() => {
     console.log('Auto-scroll completed, updating UI');
     if (statusText) {
@@ -273,12 +287,14 @@ function createBulkModeUI() {
         statusText.style.color = '#FF9800';
       }
     }
+    updateNextPageButton();
   }).catch((error) => {
     console.error('Auto-scroll failed:', error);
     if (statusText) {
       statusText.textContent = bulkAnnotationMode ? 'Click observations to select' : 'Choose annotation type in popup first';
       statusText.style.color = bulkAnnotationMode ? '#4CAF50' : '#FF9800';
     }
+    updateNextPageButton();
   });
 
   // Event listeners
