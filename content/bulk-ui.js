@@ -235,7 +235,6 @@ function createBulkModeUI() {
     cursor: pointer;
     font-size: 11px;
     white-space: nowrap;
-    display: none;
   `;
 
   buttonRow.appendChild(counter);
@@ -264,16 +263,14 @@ function createBulkModeUI() {
   }
 
   function updateNextPageButton() {
-    // Try pagination DOM selectors first
-    if (document.querySelector('a[rel="next"]') ||
-        document.querySelector('.pagination li.next:not(.disabled) a')) {
-      nextPageButton.style.display = 'inline-block';
-      return;
-    }
-    // Fallback: iNat shows 96 obs per page; a full page means there are more
-    const perPage = parseInt(new URL(window.location.href).searchParams.get('per_page') || '96');
-    const obsCount = document.querySelectorAll('.thumbnail a[href*="/observations/"]').length;
-    nextPageButton.style.display = obsCount >= perPage ? 'inline-block' : 'none';
+    // Disable if pagination exists but has no "next" link, or if there's no pagination at all
+    const hasPagination = document.querySelector('.pagination');
+    const hasNext = document.querySelector('a[rel="next"]') ||
+                    document.querySelector('.pagination li.next:not(.disabled) a');
+    const disabled = hasPagination ? !hasNext : false;
+    nextPageButton.disabled = disabled;
+    nextPageButton.style.opacity = disabled ? '0.4' : '1';
+    nextPageButton.style.cursor = disabled ? 'default' : 'pointer';
   }
 
   autoScrollToRevealAllObservations().then(() => {
