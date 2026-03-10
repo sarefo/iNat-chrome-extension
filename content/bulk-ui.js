@@ -1,84 +1,54 @@
 // Function to auto-scroll page to reveal all observations
 function autoScrollToRevealAllObservations() {
-  return new Promise((resolve, reject) => {
-    try {
-      console.log('Starting auto-scroll to reveal all observations...');
+  return new Promise((resolve) => {
+    const windowHeight = window.innerHeight;
+    const scrollStep = 600;
+    const scrollDelay = 300;
+    // How long to wait at the bottom for iNat to lazy-load the next batch
+    const loadWaitTime = 2500;
+    let scrollCount = 0;
+    const maxScrollAttempts = 150;
 
-      const initialScrollY = window.scrollY;
-      const initialDocumentHeight = document.documentElement.scrollHeight;
-      const windowHeight = window.innerHeight;
-      const paginationDiv = document.querySelector('.pages.col-xs-12');
+    console.log('Starting auto-scroll to reveal all observations...');
 
-      console.log(`Initial state: ScrollY=${initialScrollY}, DocHeight=${initialDocumentHeight}, WindowHeight=${windowHeight}, PaginationFound=${!!paginationDiv}`);
-
-      const scrollStep = 800;
-      const scrollDelay = 500;
-      let scrollCount = 0;
-      const maxScrollAttempts = 50;
-      let lastScrollY = initialScrollY;
-      let stuckCount = 0;
-
-      function isElementInViewport(element) {
-        try {
-          const rect = element.getBoundingClientRect();
-          return (
-            rect.top >= 0 &&
-            rect.left >= 0 &&
-            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-          );
-        } catch (e) {
-          console.error('Error checking viewport:', e);
-          return false;
-        }
+    function performScrollStep() {
+      if (scrollCount >= maxScrollAttempts) {
+        console.log('Auto-scroll: reached max attempts, stopping');
+        resolve();
+        return;
       }
 
-      function performScrollStep() {
-        try {
-          const currentScrollY = window.scrollY;
-          const documentHeight = document.documentElement.scrollHeight;
+      const currentScrollY = window.scrollY;
+      const documentHeight = document.documentElement.scrollHeight;
+      const reachedBottom = currentScrollY + windowHeight >= documentHeight - 100;
 
-          if (currentScrollY === lastScrollY) {
-            stuckCount++;
-            console.log(`Scroll stuck at position ${currentScrollY}, stuck count: ${stuckCount}`);
-            if (stuckCount >= 3) {
-              console.log('Scrolling appears stuck, completing auto-scroll');
-              resolve();
-              return;
-            }
+      console.log(`Scroll step ${scrollCount + 1}: Y=${currentScrollY}, DocHeight=${documentHeight}, atBottom=${reachedBottom}`);
+
+      if (reachedBottom) {
+        // At the bottom — wait to see if iNat lazy-loads another batch of observations
+        const heightBeforeWait = documentHeight;
+        setTimeout(() => {
+          const newHeight = document.documentElement.scrollHeight;
+          if (newHeight > heightBeforeWait) {
+            // New content loaded, keep scrolling
+            console.log(`Auto-scroll: new content loaded (${heightBeforeWait} → ${newHeight}), continuing`);
+            scrollCount++;
+            performScrollStep();
           } else {
-            stuckCount = 0;
-          }
-          lastScrollY = currentScrollY;
-
-          const paginationDiv = document.querySelector('.pages.col-xs-12');
-          const isPaginationVisible = paginationDiv && isElementInViewport(paginationDiv);
-
-          console.log(`Scroll step ${scrollCount + 1}: Y=${currentScrollY}, DocHeight=${documentHeight}, WindowHeight=${windowHeight}, PaginationVisible=${isPaginationVisible}`);
-
-          const reachedBottom = currentScrollY + windowHeight >= documentHeight - 50;
-
-          if (reachedBottom || scrollCount >= maxScrollAttempts) {
-            console.log(`Auto-scroll completed after ${scrollCount + 1} steps. Reached bottom: ${reachedBottom}`);
+            // Height unchanged — truly at the bottom
+            console.log('Auto-scroll: no new content after wait, done');
             resolve();
-            return;
           }
-
-          window.scrollBy(0, scrollStep);
-          scrollCount++;
-
-          setTimeout(performScrollStep, scrollDelay);
-        } catch (e) {
-          console.error('Error in performScrollStep:', e);
-          reject(e);
-        }
+        }, loadWaitTime);
+        return;
       }
 
-      performScrollStep();
-    } catch (e) {
-      console.error('Error in autoScrollToRevealAllObservations:', e);
-      reject(e);
+      window.scrollBy(0, scrollStep);
+      scrollCount++;
+      setTimeout(performScrollStep, scrollDelay);
     }
+
+    performScrollStep();
   });
 }
 
@@ -263,14 +233,33 @@ function createBulkModeUI() {
   }
 
   function updateNextPageButton() {
-    // Disable if pagination exists but has no "next" link, or if there's no pagination at all
-    const hasPagination = document.querySelector('.pagination');
-    const hasNext = document.querySelector('a[rel="next"]') ||
-                    document.querySelector('.pagination li.next:not(.disabled) a');
-    const disabled = hasPagination ? !hasNext : false;
-    nextPageButton.disabled = disabled;
-    nextPageButton.style.opacity = disabled ? '0.4' : '1';
-    nextPageButton.style.cursor = disabled ? 'default' : 'pointer';
+    // Primary: explicit DOM "next page" link from iNat's pagination
+    const hasNextLink = document.querySelector('a[rel="next"]') ||
+                        document.querySelector('.pagination li.next:not(.disabled) a') ||
+                        document.querySelector('.pagination .next:not(.disabled) a');
+    // Explicit "no next page" signal (last-page indicator)
+    const hasDisabledNext = document.querySelector('.pagination li.next.disabled') ||
+                            document.querySelector('.pagination .next.disabled');
+
+    let enabled;
+    if (hasNextLink) {
+      enabled = true;
+    } else if (hasDisabledNext) {
+      enabled = false;
+    } else {
+      // Fallback: count-based heuristic.
+      // iNat shows `per_page` observations per URL-page (default 30, override via ?per_page=N).
+      // If we loaded a full page worth of observations, there are likely more pages.
+      const url = new URL(window.location.href);
+      const perPage = parseInt(url.searchParams.get('per_page') || '30', 10);
+      const obsCount = document.querySelectorAll('.thumbnail a[href*="/observations/"]').length;
+      enabled = obsCount >= perPage;
+      console.log(`Next-page heuristic: ${obsCount} obs loaded, per_page=${perPage}, enabled=${enabled}`);
+    }
+
+    nextPageButton.disabled = !enabled;
+    nextPageButton.style.opacity = enabled ? '1' : '0.4';
+    nextPageButton.style.cursor = enabled ? 'pointer' : 'default';
   }
 
   autoScrollToRevealAllObservations().then(() => {
