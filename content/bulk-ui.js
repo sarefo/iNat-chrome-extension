@@ -5,7 +5,7 @@ function autoScrollToRevealAllObservations() {
     const scrollStep = 600;
     const scrollDelay = 300;
     // How long to wait at the bottom for iNat to lazy-load the next batch
-    const loadWaitTime = 2500;
+    const loadWaitTime = 5000;
     let scrollCount = 0;
     const maxScrollAttempts = 150;
 
@@ -235,11 +235,11 @@ function createBulkModeUI() {
   function updateNextPageButton() {
     // Primary: explicit DOM "next page" link from iNat's pagination
     const hasNextLink = document.querySelector('a[rel="next"]') ||
-                        document.querySelector('.pagination li.next:not(.disabled) a') ||
-                        document.querySelector('.pagination .next:not(.disabled) a');
+      document.querySelector('.pagination li.next:not(.disabled) a') ||
+      document.querySelector('.pagination .next:not(.disabled) a');
     // Explicit "no next page" signal (last-page indicator)
     const hasDisabledNext = document.querySelector('.pagination li.next.disabled') ||
-                            document.querySelector('.pagination .next.disabled');
+      document.querySelector('.pagination .next.disabled');
 
     let enabled;
     if (hasNextLink) {
