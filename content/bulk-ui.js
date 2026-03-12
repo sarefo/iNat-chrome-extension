@@ -354,7 +354,8 @@ function goToNextPage() {
   const data = {
     annotationType: bulkAnnotationMode,
     observations: Array.from(selectedObservations),
-    lastUpdated: Date.now()
+    lastUpdated: Date.now(),
+    expectedUrl: url.toString()   // used to detect taxon-filter stripping by iNat
   };
   chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
     window.location.href = url.toString();

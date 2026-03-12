@@ -255,6 +255,30 @@ if (isObservationsListPage()) {
   chrome.storage.local.get([STORAGE_KEY_CURRENT], result => {
     const stored = result[STORAGE_KEY_CURRENT];
     if (!stored || !stored.annotationType) return; // annotation type is enough to restore
+
+    // iNat sometimes strips taxon_id when serving a paginated page. Detect and
+    // retry: if we have an expectedUrl with taxon_id but the current URL lacks it,
+    // redirect to the correct URL (clear expectedUrl first to avoid a retry loop).
+    if (stored.expectedUrl) {
+      const expected = new URL(stored.expectedUrl);
+      const current  = new URL(window.location.href);
+      const expectedTaxonId = expected.searchParams.get('taxon_id');
+      const currentTaxonId  = current.searchParams.get('taxon_id');
+      if (expectedTaxonId && !currentTaxonId) {
+        console.log(`[bulk] taxon_id missing from URL (iNat stripped it). Retrying: ${stored.expectedUrl}`);
+        const retryData = Object.assign({}, stored);
+        delete retryData.expectedUrl; // prevent infinite redirect loop
+        chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: retryData }, () => {
+          window.location.href = stored.expectedUrl;
+        });
+        return;
+      }
+      // URL looks correct — clear expectedUrl so stale data doesn't persist
+      const cleanData = Object.assign({}, stored);
+      delete cleanData.expectedUrl;
+      chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: cleanData });
+    }
+
     selectedObservations = new Set(stored.observations || []);
     bulkAnnotationMode = stored.annotationType;
     bulkSelectionMode = true;
