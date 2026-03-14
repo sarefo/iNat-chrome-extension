@@ -4,6 +4,8 @@ let selectedObservations = new Set();
 let bulkModeButtons = null;
 let bulkAnnotationMode = 'adult-alive'; // Default mode
 let bulkJumpedToLastPage = false;
+let bulkTotalObservations = 0;
+let bulkTaxonId = ''; // persists through all page navigations to detect/fix iNat taxon_id stripping
 
 // Function to check if we're on a supported observations list page
 function isObservationsListPage() {

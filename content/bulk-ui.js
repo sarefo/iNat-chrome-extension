@@ -1,5 +1,49 @@
+// Count unique observation IDs currently rendered on the page
+function countLoadedObservations() {
+  const ids = new Set();
+  document.querySelectorAll('.thumbnail a[href*="/observations/"]').forEach(link => {
+    const href = link.getAttribute('href');
+    const id = href.split('/observations/')[1]?.split('?')[0]?.split('#')[0];
+    if (id && /^\d+$/.test(id)) ids.add(id);
+  });
+  return ids.size;
+}
+
+// If bulkTaxonId is set but missing from the current URL, redirect with it restored.
+// Returns true if a redirect was initiated (caller should abort further work).
+function checkAndFixTaxonId() {
+  if (!bulkTaxonId) return false;
+  const current = new URL(window.location.href);
+  if (current.searchParams.get('taxon_id')) return false; // already correct
+
+  // taxon_id was stripped by iNat — rebuild the URL and redirect
+  current.searchParams.set('taxon_id', bulkTaxonId);
+  console.log(`[bulk] taxon_id missing at scroll time, redirecting to: ${current}`);
+  const data = {
+    annotationType: bulkAnnotationMode,
+    observations: Array.from(selectedObservations),
+    lastUpdated: Date.now(),
+    jumpedToLastPage: bulkJumpedToLastPage,
+    totalObservations: bulkTotalObservations,
+    taxonId: bulkTaxonId
+  };
+  chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
+    window.location.href = current.toString();
+  });
+  return true;
+}
+
+// Return how many observations we expect on the current page, or 0 if unknown
+function getExpectedObservationCount() {
+  if (!bulkTotalObservations) return 0;
+  const currentPage = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
+  const lastPage = Math.ceil(bulkTotalObservations / 96);
+  if (currentPage < lastPage) return 96;
+  return bulkTotalObservations - (lastPage - 1) * 96;
+}
+
 // Function to auto-scroll page to reveal all observations
-function autoScrollToRevealAllObservations() {
+function autoScrollToRevealAllObservations(expectedCount = 0) {
   return new Promise((resolve) => {
     const windowHeight = window.innerHeight;
     const scrollStep = 600;
@@ -9,7 +53,7 @@ function autoScrollToRevealAllObservations() {
     let scrollCount = 0;
     const maxScrollAttempts = 150;
 
-    console.log('Starting auto-scroll to reveal all observations...');
+    console.log(`Starting auto-scroll (expecting ${expectedCount || '?'} observations)...`);
 
     function performScrollStep() {
       if (scrollCount >= maxScrollAttempts) {
@@ -21,11 +65,18 @@ function autoScrollToRevealAllObservations() {
       const currentScrollY = window.scrollY;
       const documentHeight = document.documentElement.scrollHeight;
       const reachedBottom = currentScrollY + windowHeight >= documentHeight - 100;
+      const allLoaded = expectedCount > 0 && countLoadedObservations() >= expectedCount;
 
-      console.log(`Scroll step ${scrollCount + 1}: Y=${currentScrollY}, DocHeight=${documentHeight}, atBottom=${reachedBottom}`);
+      console.log(`Scroll step ${scrollCount + 1}: Y=${currentScrollY}, DocHeight=${documentHeight}, atBottom=${reachedBottom}, loaded=${allLoaded}`);
 
       if (reachedBottom) {
-        // At the bottom — wait to see if iNat lazy-loads another batch of observations
+        if (allLoaded) {
+          // All observations present and at the bottom — done, no need to wait
+          console.log(`Auto-scroll: all ${expectedCount} observations loaded at bottom, done`);
+          resolve();
+          return;
+        }
+        // At the bottom but not all loaded yet — wait for iNat lazy-loading
         const heightBeforeWait = documentHeight;
         setTimeout(() => {
           const newHeight = document.documentElement.scrollHeight;
@@ -43,6 +94,7 @@ function autoScrollToRevealAllObservations() {
         return;
       }
 
+      // Not at bottom yet — keep scrolling regardless of whether all are loaded
       window.scrollBy(0, scrollStep);
       scrollCount++;
       setTimeout(performScrollStep, scrollDelay);
@@ -242,9 +294,10 @@ function createBulkModeUI() {
   }
 
   function doAutoScroll() {
+    if (checkAndFixTaxonId()) return; // wrong URL — redirect in progress
     statusText.textContent = 'Auto-scrolling to reveal all observations...';
     statusText.style.color = '#FF9800';
-    autoScrollToRevealAllObservations().then(setReadyStatus).catch(setReadyStatus);
+    autoScrollToRevealAllObservations(getExpectedObservationCount()).then(setReadyStatus).catch(setReadyStatus);
   }
 
   const currentPage = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
@@ -263,6 +316,7 @@ function createBulkModeUI() {
         return;
       }
 
+      const taxonId = new URL(window.location.href).searchParams.get('taxon_id') || '';
       if (total > 96) {
         const lastPage = Math.ceil(total / 96);
         console.log(`[bulk] ${total} observations → jumping to last page ${lastPage}`);
@@ -273,7 +327,9 @@ function createBulkModeUI() {
           observations: Array.from(selectedObservations),
           lastUpdated: Date.now(),
           jumpedToLastPage: true,
-          expectedUrl: url.toString()
+          expectedUrl: url.toString(),
+          totalObservations: total,
+          taxonId: taxonId
         };
         chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
           window.location.href = url.toString();
@@ -281,6 +337,8 @@ function createBulkModeUI() {
       } else {
         // All observations fit on one page — auto-scroll and stay here
         bulkJumpedToLastPage = true;
+        bulkTotalObservations = total;
+        bulkTaxonId = taxonId;
         doAutoScroll();
       }
     }
@@ -357,13 +415,19 @@ function goToPrevPage() {
   const currentPage = parseInt(url.searchParams.get('page') || '1');
   if (currentPage <= 1) return;
   url.searchParams.set('page', currentPage - 1);
+  // Proactively ensure taxon_id is in the target URL (iNat sometimes strips it)
+  if (bulkTaxonId && !url.searchParams.get('taxon_id')) {
+    url.searchParams.set('taxon_id', bulkTaxonId);
+  }
 
   const data = {
     annotationType: bulkAnnotationMode,
     observations: Array.from(selectedObservations),
     lastUpdated: Date.now(),
     jumpedToLastPage: true,
-    expectedUrl: url.toString()   // used to detect taxon-filter stripping by iNat
+    expectedUrl: url.toString(),   // used to detect taxon-filter stripping by iNat
+    totalObservations: bulkTotalObservations,
+    taxonId: bulkTaxonId
   };
   chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
     window.location.href = url.toString();
