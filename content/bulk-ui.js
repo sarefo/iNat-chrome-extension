@@ -193,10 +193,10 @@ function createBulkModeUI() {
     font-size: 12px;
   `;
 
-  const nextPageButton = document.createElement('button');
-  nextPageButton.textContent = 'Next Page →';
-  nextPageButton.id = 'bulk-next-page-button';
-  nextPageButton.style.cssText = `
+  const prevPageButton = document.createElement('button');
+  prevPageButton.textContent = '← Prev Page';
+  prevPageButton.id = 'bulk-prev-page-button';
+  prevPageButton.style.cssText = `
     background: #9C27B0;
     color: white;
     border: none;
@@ -208,8 +208,8 @@ function createBulkModeUI() {
   `;
 
   buttonRow.appendChild(counter);
+  buttonRow.appendChild(prevPageButton);
   buttonRow.appendChild(selectAllButton);
-  buttonRow.appendChild(nextPageButton);
   buttonRow.appendChild(saveQueueButton);
   buttonRow.appendChild(processButton);
   buttonRow.appendChild(cancelButton);
@@ -225,63 +225,71 @@ function createBulkModeUI() {
   // Start selection mode only if annotation type is set
   bulkSelectionMode = !!bulkAnnotationMode;
 
-  // Start auto-scrolling to reveal all observations
-  console.log('About to start auto-scrolling in bulk mode...');
-  if (statusText) {
-    statusText.textContent = 'Auto-scrolling to reveal all observations...';
-    statusText.style.color = '#FF9800';
+  function updatePrevPageButton() {
+    const currentPage = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
+    const enabled = currentPage > 1;
+    prevPageButton.disabled = !enabled;
+    prevPageButton.style.opacity = enabled ? '1' : '0.4';
+    prevPageButton.style.cursor = enabled ? 'pointer' : 'default';
   }
 
-  function updateNextPageButton() {
-    // Primary: explicit DOM "next page" link from iNat's pagination
-    const hasNextLink = document.querySelector('a[rel="next"]') ||
-      document.querySelector('.pagination li.next:not(.disabled) a') ||
-      document.querySelector('.pagination .next:not(.disabled) a');
-    // Explicit "no next page" signal (last-page indicator)
-    const hasDisabledNext = document.querySelector('.pagination li.next.disabled') ||
-      document.querySelector('.pagination .next.disabled');
-
-    let enabled;
-    if (hasNextLink) {
-      enabled = true;
-    } else if (hasDisabledNext) {
-      enabled = false;
-    } else {
-      // Fallback: count-based heuristic.
-      // iNat shows `per_page` observations per URL-page (default 30, override via ?per_page=N).
-      // If we loaded a full page worth of observations, there are likely more pages.
-      const url = new URL(window.location.href);
-      const perPage = parseInt(url.searchParams.get('per_page') || '30', 10);
-      const obsCount = document.querySelectorAll('.thumbnail a[href*="/observations/"]').length;
-      enabled = obsCount >= perPage;
-      console.log(`Next-page heuristic: ${obsCount} obs loaded, per_page=${perPage}, enabled=${enabled}`);
-    }
-
-    nextPageButton.disabled = !enabled;
-    nextPageButton.style.opacity = enabled ? '1' : '0.4';
-    nextPageButton.style.cursor = enabled ? 'pointer' : 'default';
-  }
-
-  autoScrollToRevealAllObservations().then(() => {
-    console.log('Auto-scroll completed, updating UI');
-    if (statusText) {
-      if (bulkAnnotationMode) {
-        statusText.textContent = 'Click observations to select';
-        statusText.style.color = '#4CAF50';
-      } else {
-        statusText.textContent = 'Choose annotation type in popup first';
-        statusText.style.color = '#FF9800';
-      }
-    }
-    updateNextPageButton();
-  }).catch((error) => {
-    console.error('Auto-scroll failed:', error);
+  function setReadyStatus() {
     if (statusText) {
       statusText.textContent = bulkAnnotationMode ? 'Click observations to select' : 'Choose annotation type in popup first';
       statusText.style.color = bulkAnnotationMode ? '#4CAF50' : '#FF9800';
     }
-    updateNextPageButton();
-  });
+    updatePrevPageButton();
+  }
+
+  function doAutoScroll() {
+    statusText.textContent = 'Auto-scrolling to reveal all observations...';
+    statusText.style.color = '#FF9800';
+    autoScrollToRevealAllObservations().then(setReadyStatus).catch(setReadyStatus);
+  }
+
+  const currentPage = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
+  if (currentPage === 1 && !bulkJumpedToLastPage) {
+    // On page 1: read total observation count and jump straight to the last page.
+    // No need to auto-scroll — we just need the stat element.
+    statusText.textContent = 'Reading observation count...';
+    statusText.style.color = '#FF9800';
+
+    function waitForStatAndJump(attemptsLeft) {
+      const el = document.querySelector('.stat-value.ng-binding');
+      const total = el ? parseInt(el.textContent.trim().replace(/[^0-9]/g, ''), 10) : 0;
+
+      if (!total && attemptsLeft > 0) {
+        setTimeout(() => waitForStatAndJump(attemptsLeft - 1), 500);
+        return;
+      }
+
+      if (total > 96) {
+        const lastPage = Math.ceil(total / 96);
+        console.log(`[bulk] ${total} observations → jumping to last page ${lastPage}`);
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', lastPage);
+        const data = {
+          annotationType: bulkAnnotationMode,
+          observations: Array.from(selectedObservations),
+          lastUpdated: Date.now(),
+          jumpedToLastPage: true,
+          expectedUrl: url.toString()
+        };
+        chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
+          window.location.href = url.toString();
+        });
+      } else {
+        // All observations fit on one page — auto-scroll and stay here
+        bulkJumpedToLastPage = true;
+        doAutoScroll();
+      }
+    }
+
+    waitForStatAndJump(10); // retry up to 5 seconds
+  } else {
+    // On a working page (> 1) — auto-scroll to reveal all observations
+    doAutoScroll();
+  }
 
   // Event listeners
   processButton.addEventListener('click', () => {
@@ -307,8 +315,8 @@ function createBulkModeUI() {
     exitBulkMode();
   });
 
-  nextPageButton.addEventListener('click', () => {
-    goToNextPage();
+  prevPageButton.addEventListener('click', () => {
+    goToPrevPage();
   });
 }
 
@@ -343,18 +351,18 @@ function exitBulkMode() {
   });
 }
 
-// Navigate to the next page, preserving bulk mode state across the navigation
-function goToNextPage() {
+// Navigate to the previous page, preserving bulk mode state across the navigation
+function goToPrevPage() {
   const url = new URL(window.location.href);
   const currentPage = parseInt(url.searchParams.get('page') || '1');
-  url.searchParams.set('page', currentPage + 1);
+  if (currentPage <= 1) return;
+  url.searchParams.set('page', currentPage - 1);
 
-  // Persist annotation type + current selections before navigating
-  // (saves even with 0 obs so bulk mode is restored on the new page)
   const data = {
     annotationType: bulkAnnotationMode,
     observations: Array.from(selectedObservations),
     lastUpdated: Date.now(),
+    jumpedToLastPage: true,
     expectedUrl: url.toString()   // used to detect taxon-filter stripping by iNat
   };
   chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {

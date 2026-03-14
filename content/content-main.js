@@ -281,6 +281,7 @@ if (isObservationsListPage()) {
 
     selectedObservations = new Set(stored.observations || []);
     bulkAnnotationMode = stored.annotationType;
+    bulkJumpedToLastPage = stored.jumpedToLastPage || false;
     bulkSelectionMode = true;
     // Wait for iNat to render observations before creating UI + auto-scrolling.
     // On next-page navigation the storage callback fires before React has populated
