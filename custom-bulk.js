@@ -2,6 +2,8 @@ const PAGE_SIZE = 100; // observations per display page
 
 let allObservations = []; // [{ id, photoUrl }]
 let selectedIds = new Set();
+let femaleIds = new Set();
+let maleIds = new Set();
 let currentPage = 1;
 let totalCount = 0;
 let totalApiPages = 0;
@@ -24,6 +26,19 @@ function saveSelections() {
     if (!data) return;
     chrome.storage.local.set({
       innat_custom_bulk: { ...data, selectedIds: Array.from(selectedIds) }
+    });
+  });
+}
+
+function saveSexSelections() {
+  getStorageData().then(data => {
+    if (!data) return;
+    chrome.storage.local.set({
+      innat_custom_bulk: {
+        ...data,
+        femaleIds: Array.from(femaleIds),
+        maleIds: Array.from(maleIds)
+      }
     });
   });
 }
@@ -77,9 +92,15 @@ function renderGrid() {
   loadingMsg.style.display = 'none';
   grid.innerHTML = '';
 
+  const isSex = annotationType === 'sex-split';
+
   obs.forEach(({ id, photoUrl }) => {
     const card = document.createElement('div');
-    card.className = 'obs-card' + (selectedIds.has(id) ? ' selected' : '');
+    if (isSex) {
+      card.className = 'obs-card sex-mode';
+    } else {
+      card.className = 'obs-card' + (selectedIds.has(id) ? ' selected' : '');
+    }
     card.dataset.id = id;
 
     if (photoUrl) {
@@ -95,6 +116,26 @@ function renderGrid() {
       card.appendChild(noPhoto);
     }
 
+    if (isSex) {
+      const fOverlay = document.createElement('div');
+      fOverlay.className = 'sex-overlay sex-female-overlay' + (femaleIds.has(id) ? ' active' : '');
+      card.appendChild(fOverlay);
+
+      const mOverlay = document.createElement('div');
+      mOverlay.className = 'sex-overlay sex-male-overlay' + (maleIds.has(id) ? ' active' : '');
+      card.appendChild(mOverlay);
+
+      const fLabel = document.createElement('div');
+      fLabel.className = 'sex-female-label';
+      fLabel.textContent = '♀';
+      card.appendChild(fLabel);
+
+      const mLabel = document.createElement('div');
+      mLabel.className = 'sex-male-label';
+      mLabel.textContent = '♂';
+      card.appendChild(mLabel);
+    }
+
     card.addEventListener('click', e => handleCardClick(e, id, card));
     grid.appendChild(card);
   });
@@ -108,8 +149,13 @@ function updateToolbar() {
   document.getElementById('btn-next').disabled = currentPage >= pages;
 
   const processBtn = document.getElementById('btn-process');
-  processBtn.textContent = `Add to Queue (${selectedIds.size})`;
-  processBtn.disabled = selectedIds.size === 0;
+  if (annotationType === 'sex-split') {
+    processBtn.textContent = `Add to Queue (♀ ${femaleIds.size} / ♂ ${maleIds.size})`;
+    processBtn.disabled = femaleIds.size === 0 && maleIds.size === 0;
+  } else {
+    processBtn.textContent = `Add to Queue (${selectedIds.size})`;
+    processBtn.disabled = selectedIds.size === 0;
+  }
 
   const pageObs = pageObservations();
   const allOnPageSelected = pageObs.length > 0 && pageObs.every(o => selectedIds.has(o.id));
@@ -121,7 +167,9 @@ function updateStatusInfo() {
   const info = document.getElementById('status-info');
   const loaded = allObservations.length;
 
-  let html = `<span class="count">${selectedIds.size} selected</span>`;
+  let html = annotationType === 'sex-split'
+    ? `<span class="count">♀ ${femaleIds.size} / ♂ ${maleIds.size}</span>`
+    : `<span class="count">${selectedIds.size} selected</span>`;
   if (dataStatus === 'loading') {
     html += ` &nbsp;|&nbsp; <span class="loading">Fetching ${loaded} / ${totalCount || '?'}</span>`;
   } else if (dataStatus === 'error') {
@@ -163,6 +211,11 @@ function preloadAdjacentPages() {
 // ---------------------------------------------------------------------------
 
 function handleCardClick(e, id, card) {
+  if (annotationType === 'sex-split') {
+    handleSexCardClick(e, id, card);
+    return;
+  }
+
   if (e.ctrlKey || e.metaKey) {
     // Ctrl+click: deselect and open in new tab
     if (selectedIds.has(id)) {
@@ -189,6 +242,44 @@ function handleCardClick(e, id, card) {
   updateStatusInfo();
 }
 
+function handleSexCardClick(e, id, card) {
+  if (e.ctrlKey || e.metaKey) {
+    window.open(`https://www.inaturalist.org/observations/${id}`, '_blank');
+    return;
+  }
+
+  // Diagonal from top-right to bottom-left: female = upper-left (x+y < width)
+  const rect = card.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const isFemaleZone = (x + y) < rect.width;
+
+  if (isFemaleZone) {
+    if (femaleIds.has(id)) {
+      femaleIds.delete(id);
+    } else {
+      femaleIds.add(id);
+      maleIds.delete(id);
+    }
+  } else {
+    if (maleIds.has(id)) {
+      maleIds.delete(id);
+    } else {
+      maleIds.add(id);
+      femaleIds.delete(id);
+    }
+  }
+
+  const fOverlay = card.querySelector('.sex-female-overlay');
+  const mOverlay = card.querySelector('.sex-male-overlay');
+  if (fOverlay) fOverlay.classList.toggle('active', femaleIds.has(id));
+  if (mOverlay) mOverlay.classList.toggle('active', maleIds.has(id));
+
+  saveSexSelections();
+  updateToolbar();
+  updateStatusInfo();
+}
+
 // ---------------------------------------------------------------------------
 // Queue
 // ---------------------------------------------------------------------------
@@ -202,9 +293,71 @@ const ANNOTATION_LABELS = {
   'plant-flowers':           '🌼 Flowers',
   'plant-fruits':            '🍇 Fruits',
   'plant-no-flowers-fruits': '❌ No Flowers/Fruits',
+  'sex-split':               '⚥ Sex (♀/♂)',
 };
 
+async function addToQueueSexMode() {
+  if (femaleIds.size === 0 && maleIds.size === 0) return;
+
+  const data = await getStorageData();
+  let taxonPrefix = '';
+  if (data?.searchUrl) {
+    try {
+      const params = new URL(data.searchUrl).searchParams;
+      const taxon = params.get('taxon_name') || params.get('taxon_id') || '';
+      if (taxon) taxonPrefix = `${taxon} · `;
+    } catch { /* ignore */ }
+  }
+
+  const stored = await chrome.storage.local.get(['innat_queues']);
+  const queues = stored.innat_queues || [];
+  let totalAdded = 0;
+  const now = Date.now();
+
+  if (femaleIds.size > 0) {
+    const femaleObs = Array.from(femaleIds);
+    queues.push({
+      id: `q_${now}_f`,
+      name: `${taxonPrefix}♀ Female (${femaleObs.length})`,
+      annotationType: 'sex-female',
+      observations: femaleObs,
+      created: now,
+      status: 'pending'
+    });
+    totalAdded += femaleObs.length;
+  }
+
+  if (maleIds.size > 0) {
+    const maleObs = Array.from(maleIds);
+    queues.push({
+      id: `q_${now + 1}_m`,
+      name: `${taxonPrefix}♂ Male (${maleObs.length})`,
+      annotationType: 'sex-male',
+      observations: maleObs,
+      created: now + 1,
+      status: 'pending'
+    });
+    totalAdded += maleObs.length;
+  }
+
+  await chrome.storage.local.set({ innat_queues: queues });
+  chrome.runtime.sendMessage({ action: 'queueUpdated' }, () => { void chrome.runtime.lastError; });
+
+  femaleIds.clear();
+  maleIds.clear();
+  saveSexSelections();
+  renderGrid();
+  updateToolbar();
+  updateStatusInfo();
+
+  const toast = document.getElementById('queue-toast');
+  toast.textContent = `✓ Added ${totalAdded} observations to queue`;
+  toast.classList.add('active');
+  setTimeout(() => toast.classList.remove('active'), 3000);
+}
+
 async function addToQueue() {
+  if (annotationType === 'sex-split') return addToQueueSexMode();
   if (selectedIds.size === 0) return;
 
   const data = await getStorageData();
@@ -289,9 +442,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // Toolbar events
 // ---------------------------------------------------------------------------
 
+function updateSexModeUI() {
+  const isSex = annotationType === 'sex-split';
+  document.getElementById('btn-select-page').style.display = isSex ? 'none' : '';
+  document.getElementById('btn-select-all').style.display = isSex ? 'none' : '';
+  render();
+}
+
 document.getElementById('annotation-select').addEventListener('change', e => {
   annotationType = e.target.value;
   saveAnnotationType(annotationType);
+  updateSexModeUI();
 });
 
 document.getElementById('btn-prev').addEventListener('click', () => {
@@ -365,12 +526,16 @@ document.addEventListener('keydown', (e) => {
       }
       break;
     case 'a':
-      // Select all
-      document.getElementById('btn-select-all').click();
+      if (annotationType !== 'sex-split') {
+        document.getElementById('btn-select-all').click();
+      }
       break;
     case 'x':
-      // Queue and close
-      if (selectedIds.size > 0) {
+      if (annotationType === 'sex-split') {
+        if (femaleIds.size > 0 || maleIds.size > 0) {
+          addToQueue().then(() => window.close());
+        }
+      } else if (selectedIds.size > 0) {
         addToQueue().then(() => window.close());
       }
       break;
@@ -391,6 +556,8 @@ async function init() {
 
   allObservations = data.observations || [];
   selectedIds = new Set(data.selectedIds || []);
+  femaleIds = new Set(data.femaleIds || []);
+  maleIds = new Set(data.maleIds || []);
   totalCount = data.totalCount || 0;
   totalApiPages = data.totalApiPages || 0;
   fetchedApiPages = data.fetchedApiPages || 0;
@@ -410,7 +577,7 @@ async function init() {
     } catch { /* ignore malformed URLs */ }
   }
 
-  render();
+  updateSexModeUI(); // applies button visibility and renders
 
   if (dataStatus !== 'loading') preloadAdjacentPages();
 }

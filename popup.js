@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('openUrlUsername').textContent = currentUsername || 'all';
   });
 
-  document.getElementById('startCustomBulkMode').addEventListener('click', function() {
+  function startBulkModeFromTab(annotationType, withoutTermId) {
     chrome.tabs.query({ active: true, currentWindow: true }, async function(tabs) {
       const tab = tabs[0];
       const url = tab.url || '';
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
             action: 'startCustomBulkMode',
             searchUrl,
             jwt,
-            annotationType: 'adult-alive',
+            annotationType,
             sourceTabId: tab.id
           }, () => { void chrome.runtime.lastError; });
           window.close();
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Taxon page: /taxa/12345-Name
       const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)/);
       if (taxaMatch) {
-        launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxaMatch[1]}&without_term_id=17`);
+        launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxaMatch[1]}&without_term_id=${withoutTermId}`);
         return;
       }
 
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.tabs.sendMessage(tab.id, { action: 'getTaxonId' }, async function(response) {
           const taxonId = response?.taxonId;
           if (taxonId) {
-            launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=17`);
+            launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=${withoutTermId}`);
             return;
           }
           // Fallback: API fetch
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
               statusDiv.style.color = 'red';
               return;
             }
-            launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${apiTaxonId}&without_term_id=17`);
+            launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${apiTaxonId}&without_term_id=${withoutTermId}`);
           } catch (e) {
             statusDiv.textContent = 'Error fetching observation taxon';
             statusDiv.style.color = 'red';
@@ -86,12 +86,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      // Observations list page: add without_term_id=17 if not already filtered
+      // Observations list page: replace or add without_term_id filter
       if (url.includes('inaturalist.org/observations')) {
         const parsed = new URL(url);
-        if (!parsed.searchParams.has('without_term_id')) {
-          parsed.searchParams.set('without_term_id', '17');
-        }
+        parsed.searchParams.set('without_term_id', String(withoutTermId));
         launchBulkMode(parsed.toString());
         return;
       }
@@ -99,6 +97,14 @@ document.addEventListener('DOMContentLoaded', function() {
       statusDiv.textContent = 'Must be on an iNaturalist page';
       statusDiv.style.color = 'red';
     });
+  }
+
+  document.getElementById('startCustomBulkMode').addEventListener('click', function() {
+    startBulkModeFromTab('adult-alive', 17);
+  });
+
+  document.getElementById('startGenderBulkMode').addEventListener('click', function() {
+    startBulkModeFromTab('sex-split', 9);
   });
 
   openUrlButton.addEventListener('click', function() {

@@ -118,6 +118,41 @@
       background: #eee;
     }
 
+    .sex-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      opacity: 0;
+      transition: opacity 0.12s;
+      pointer-events: none;
+    }
+    .sex-overlay.active { opacity: 1; }
+    .sex-female-overlay {
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+      background: rgba(233, 30, 99, 0.45);
+    }
+    .sex-male-overlay {
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+      background: rgba(33, 150, 243, 0.45);
+    }
+    .sex-female-label {
+      position: absolute;
+      top: 4px; left: 5px;
+      font-size: 15px;
+      color: rgba(255,255,255,0.9);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      pointer-events: none;
+      line-height: 1;
+    }
+    .sex-male-label {
+      position: absolute;
+      bottom: 4px; right: 5px;
+      font-size: 15px;
+      color: rgba(255,255,255,0.9);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      pointer-events: none;
+      line-height: 1;
+    }
+
     #loading-msg {
       text-align: center;
       padding: 60px 20px;
@@ -153,6 +188,7 @@
       <option value="plant-flowers">🌼 Flowers</option>
       <option value="plant-fruits">🍇 Fruits</option>
       <option value="plant-no-flowers-fruits">❌ No Flowers/Fruits</option>
+      <option value="sex-split">⚥ Sex (♀/♂)</option>
     </select>
 
     <div id="status-info">Loading...</div>
