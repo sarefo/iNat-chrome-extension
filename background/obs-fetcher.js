@@ -1,6 +1,7 @@
 const API_BASE = 'https://api.inaturalist.org/v1';
 const PER_PAGE = 200;
-const PARALLEL_BATCH = 5;
+const PARALLEL_BATCH = 3;
+const BATCH_DELAY_MS = 1000;
 
 // Params from the iNat page URL that don't translate to the API
 const SKIP_PARAMS = new Set(['page', 'per_page', 'view', 'utf8', 'tab', 'locale', 'verifiable']);
@@ -24,13 +25,22 @@ function extractObs(results) {
     }));
 }
 
-async function fetchPage(params, page) {
+async function fetchPage(params, page, retries = 3) {
   const p = new URLSearchParams(params);
   p.set('page', String(page));
-  const resp = await fetch(`${API_BASE}/observations?${p}`);
-  if (!resp.ok) throw new Error(`API error ${resp.status}`);
-  return resp.json();
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const resp = await fetch(`${API_BASE}/observations?${p}`);
+    if (resp.ok) return resp.json();
+    if (resp.status === 429 && attempt < retries) {
+      const backoff = (attempt + 1) * 2000;
+      await new Promise(r => setTimeout(r, backoff));
+      continue;
+    }
+    throw new Error(`API error ${resp.status}`);
+  }
 }
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function patchStorage(patch) {
   const stored = await chrome.storage.local.get(['innat_custom_bulk']);
@@ -86,6 +96,7 @@ export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourc
         for (const r of results) allObs = allObs.concat(extractObs(r.results));
 
         await patchStorage({ observations: allObs });
+        await sleep(BATCH_DELAY_MS);
       }
     }
 
