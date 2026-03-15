@@ -74,7 +74,7 @@ async function postAnnotation(jwt, obsId, attrId, valueId) {
 }
 
 // Annotate a single observation via API for the given mode
-// Returns { observationId, success, verified, results[] }
+// Returns { observationId, success, results[] }
 async function annotateObservationViaApi(obsId, mode, jwt) {
   const config = ANNOTATION_CONFIGS[mode];
   if (!config) {
@@ -100,7 +100,6 @@ async function annotateObservationViaApi(obsId, mode, jwt) {
   return {
     observationId: obsId,
     success: allSuccess,
-    verified: allSuccess,
     results
   };
 }
@@ -125,7 +124,7 @@ export async function annotateSingleObsViaApi(obsId, mode, jwt) {
 // Process multiple observations via API (exported for background-main.js)
 // jwt is passed directly from the content script; falls back to tab query if not provided
 // onProgress(obsId) is called after each observation completes (optional)
-export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress) {
+export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress, progressSender = null) {
   const startTime = Date.now();
   if (!jwt) {
     jwt = await getJwtFromInatTab(); // fallback for queue processing
@@ -134,32 +133,28 @@ export async function processBulkObservationsViaApi(observations, mode, sourceTa
   const results = [];
   let completed = 0;
   let errors = 0;
-  let verified = 0;
 
   const sendProgressUpdate = (isComplete = false) => {
-    if (!sourceTabId) return;
-    const elapsedTime = Date.now() - startTime;
-    chrome.tabs.sendMessage(sourceTabId, {
+    const data = {
       action: 'bulkProcessingProgress',
       completed,
       errors,
-      verified,
       total: observations.length,
       remaining: observations.length - completed,
-      elapsedTime,
+      elapsedTime: Date.now() - startTime,
       isComplete
-    }, () => {
-      if (chrome.runtime.lastError) {
-        console.warn('Failed to send progress update:', chrome.runtime.lastError.message);
-      }
-    });
+    };
+    if (progressSender) {
+      progressSender(data);
+    } else if (sourceTabId) {
+      chrome.tabs.sendMessage(sourceTabId, data, () => { void chrome.runtime.lastError; });
+    }
   };
 
   for (const obsId of observations) {
     let result;
     try {
       result = await annotateObservationViaApi(obsId, mode, jwt);
-      if (result.verified) verified++;
       results.push(result);
     } catch (err) {
       if (err.isAuthError) {
@@ -168,7 +163,6 @@ export async function processBulkObservationsViaApi(observations, mode, sourceTa
         try {
           jwt = await getJwtFromInatTab();
           result = await annotateObservationViaApi(obsId, mode, jwt);
-          if (result.verified) verified++;
           results.push(result);
         } catch (retryErr) {
           errors++;

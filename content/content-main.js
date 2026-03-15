@@ -121,29 +121,9 @@ function applyAnnotationLabelsToDOM(labelMap) {
   return updated > 0;
 }
 
-function refreshAnnotationSection(obsId, mode) {
-  // Apply immediately from known mode labels (no timing dependency)
+function refreshAnnotationSection(mode) {
   const knownLabels = ANNOTATION_DISPLAY_LABELS[mode];
   if (knownLabels) applyAnnotationLabelsToDOM(knownLabels);
-
-  // Also fetch from API after a short delay to get accurate labels (e.g. exact juvenile stage)
-  setTimeout(() => {
-    fetch(`https://api.inaturalist.org/v1/observations/${obsId}`)
-      .then(r => r.json())
-      .then(data => {
-        const annotations = data.results?.[0]?.annotations;
-        if (!annotations?.length) return;
-
-        const apiLabelMap = {};
-        annotations.forEach(a => {
-          if (a.controlled_attribute?.label && a.controlled_value?.label) {
-            apiLabelMap[a.controlled_attribute.label] = a.controlled_value.label;
-          }
-        });
-        applyAnnotationLabelsToDOM(apiLabelMap);
-      })
-      .catch(err => console.warn('[iNat ext] Could not refresh annotation section:', err));
-  }, 800);
 }
 
 // Single message listener for all content script messages
@@ -259,7 +239,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.runtime.sendMessage({ action: 'annotateSingleObs', obsId, mode, jwt }, response => {
       if (response?.success) {
         showAnnotatedToast();
-        refreshAnnotationSection(obsId, mode);
+        refreshAnnotationSection(mode);
       }
       sendResponse(response || { success: false, error: 'No response from background' });
     });

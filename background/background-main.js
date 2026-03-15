@@ -1,5 +1,6 @@
 import { processBulkObservationsViaApi, annotateSingleObsViaApi } from './api-annotator.js';
 import { processQueuedObservations } from './queue-manager.js';
+import { startCustomBulkFetch } from './obs-fetcher.js';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'annotateSingleObs') {
@@ -9,10 +10,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'startCustomBulkMode') {
+    startCustomBulkFetch(request.searchUrl, request.annotationType, request.jwt)
+      .catch(err => console.error('[custom bulk] fetch failed:', err));
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (request.action === 'processBulkObservationsStaggered') {
-    // Same action name kept so content scripts don't need changing
-    const sourceTabId = sender.tab?.id ?? null;
-    processBulkObservationsViaApi(request.observations, request.mode, sourceTabId, request.jwt)
+    // When called from the custom-bulk extension page (no sender.tab), broadcast
+    // progress via chrome.runtime.sendMessage so the page can receive it.
+    const isCustomPage = !sender.tab;
+    const sourceTabId = isCustomPage ? null : (sender.tab?.id ?? null);
+    const progressSender = isCustomPage
+      ? data => chrome.runtime.sendMessage(data, () => { void chrome.runtime.lastError; })
+      : null;
+    processBulkObservationsViaApi(request.observations, request.mode, sourceTabId, request.jwt, null, progressSender)
       .then(results => sendResponse({ success: true, results }))
       .catch(e => sendResponse({ success: false, error: e.message }));
     return true;

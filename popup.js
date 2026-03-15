@@ -50,6 +50,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  document.getElementById('startCustomBulkMode').addEventListener('click', function() {
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      const tab = tabs[0];
+      const url = tab.url || '';
+      if (!url.includes('inaturalist.org/observations')) {
+        statusDiv.textContent = 'Must be on an iNaturalist observations page';
+        statusDiv.style.color = 'red';
+        return;
+      }
+
+      chrome.tabs.sendMessage(tab.id, { action: 'getJwt' }, function(jwtResponse) {
+        const jwt = jwtResponse?.jwt || null;
+        chrome.runtime.sendMessage({
+          action: 'startCustomBulkMode',
+          searchUrl: url,
+          jwt,
+          annotationType: selectedAnnotationType || 'adult-alive'
+        }, () => { void chrome.runtime.lastError; });
+        window.close();
+      });
+    });
+  });
+
   openUrlButton.addEventListener('click', function() {
     const baseUrl = 'https://www.inaturalist.org/observations?taxon_id=1';
     const userParam = currentUsername ? `&user_id=${currentUsername}` : '';

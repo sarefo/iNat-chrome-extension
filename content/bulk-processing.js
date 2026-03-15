@@ -113,27 +113,19 @@ function handleBulkProgressUpdate(request) {
     const isComplete = request.isComplete || (request.completed >= request.total && request.remaining === 0);
 
     if (isComplete) {
-      const verifiedCount = request.verified || 0;
       const failedCount = request.errors || 0;
-      const unverifiedCount = request.completed - verifiedCount - failedCount;
-      const totalTimeText = request.elapsedTime ? ` in ${formatElapsedTime(request.elapsedTime)}` : '';
-
-      if (verifiedCount === request.total) {
-        statusText.textContent = `Successfully verified all ${verifiedCount} observations${totalTimeText}!`;
+      const timeText = request.elapsedTime ? ` in ${formatElapsedTime(request.elapsedTime)}` : '';
+      if (failedCount === 0) {
+        statusText.textContent = `Done! Annotated ${request.total} observations${timeText}.`;
         statusText.style.color = '#4CAF50';
-      } else if (verifiedCount > 0) {
-        statusText.textContent = `Verified ${verifiedCount}/${request.total} observations${totalTimeText}${failedCount > 0 ? ` (${failedCount} failed, ${unverifiedCount} unverified)` : ` (${unverifiedCount} unverified)`}`;
-        statusText.style.color = '#FF9800';
       } else {
-        statusText.textContent = `Processed ${request.total} observations${totalTimeText} (${failedCount} failed)`;
-        statusText.style.color = '#f44336';
+        statusText.textContent = `Done: ${request.total - failedCount} annotated, ${failedCount} failed${timeText}.`;
+        statusText.style.color = '#FF9800';
       }
-
       setTimeout(() => exitBulkMode(), 7000);
     } else {
-      const verifiedText = request.verified !== undefined ? ` (${request.verified} verified)` : '';
       const timeText = request.elapsedTime ? ` • ${formatElapsedTime(request.elapsedTime)}` : '';
-      statusText.textContent = `Processing observations... ${request.completed}/${request.total}${verifiedText}${timeText}`;
+      statusText.textContent = `Processing... ${request.completed}/${request.total}${timeText}`;
       statusText.style.color = '#FF9800';
     }
   }
