@@ -40,6 +40,13 @@
     #status-info .count { font-weight: bold; color: #2196F3; }
     #status-info .loading { color: #FF9800; }
 
+    #taxon-info {
+      font-size: 13px;
+      color: #2e7d32;
+      white-space: nowrap;
+      font-weight: bold;
+    }
+
     #page-info {
       font-size: 13px;
       color: #666;
@@ -150,11 +157,12 @@
 
     <div id="status-info">Loading...</div>
 
+    <span id="taxon-info"></span>
     <span id="page-info"></span>
     <button id="btn-prev"        class="toolbar-btn" disabled>← Prev</button>
     <button id="btn-next"        class="toolbar-btn" disabled>Next → <kbd>(n)</kbd></button>
     <button id="btn-select-page" class="toolbar-btn">Select Page</button>
-    <button id="btn-select-all"  class="toolbar-btn">Select All <kbd>(s)</kbd></button>
+    <button id="btn-select-all"  class="toolbar-btn">Select All <kbd>(a)</kbd></button>
     <button id="btn-process"     class="toolbar-btn" disabled>Add to Queue (0) <kbd>(x)</kbd></button>
     <button id="btn-cancel"      class="toolbar-btn">✕ Exit</button>
   </div>

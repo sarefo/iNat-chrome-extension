@@ -339,7 +339,7 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('btn-next').click();
       }
       break;
-    case 's':
+    case 'a':
       // Select all
       document.getElementById('btn-select-all').click();
       break;
@@ -371,6 +371,17 @@ async function init() {
   dataStatus = data.status || 'loading';
 
   document.getElementById('annotation-select').value = annotationType;
+
+  if (data.searchUrl) {
+    try {
+      const params = new URL(data.searchUrl).searchParams;
+      const taxonId = params.get('taxon_id');
+      const taxonName = params.get('taxon_name');
+      const label = taxonName ? `${taxonName} (${taxonId})` : taxonId ? `taxon: ${taxonId}` : '';
+      if (label) document.getElementById('taxon-info').textContent = label;
+    } catch { /* ignore malformed URLs */ }
+  }
+
   render();
 
   if (dataStatus !== 'loading') preloadAdjacentPages();

@@ -16,10 +16,12 @@ function buildApiParams(inatPageUrl) {
 }
 
 function extractObs(results) {
-  return results.map(obs => ({
-    id: String(obs.id),
-    photoUrl: (obs.photos?.[0]?.url || '').replace(/\/square(\.\w+)$/, '/medium$1')
-  }));
+  return results
+    .filter(obs => obs.photos?.length > 0)
+    .map(obs => ({
+      id: String(obs.id),
+      photoUrl: obs.photos[0].url.replace(/\/square(\.\w+)$/, '/medium$1')
+    }));
 }
 
 async function fetchPage(params, page) {
