@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'startCustomBulkMode') {
-    startCustomBulkFetch(request.searchUrl, request.annotationType, request.jwt, sender.tab?.id)
+    startCustomBulkFetch(request.searchUrl, request.annotationType, request.jwt, request.sourceTabId)
       .catch(err => console.error('[custom bulk] fetch failed:', err));
     sendResponse({ success: true });
     return true;

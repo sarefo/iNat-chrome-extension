@@ -66,7 +66,8 @@ document.addEventListener('DOMContentLoaded', function() {
           action: 'startCustomBulkMode',
           searchUrl: url,
           jwt,
-          annotationType: selectedAnnotationType || 'adult-alive'
+          annotationType: selectedAnnotationType || 'adult-alive',
+          sourceTabId: tab.id
         }, () => { void chrome.runtime.lastError; });
         window.close();
       });
