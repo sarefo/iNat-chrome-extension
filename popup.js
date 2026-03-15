@@ -1,37 +1,18 @@
 document.addEventListener('DOMContentLoaded', function() {
   const openUrlButton = document.getElementById('openUrl');
-  const toggleBulkModeButton = document.getElementById('toggleBulkMode');
-  const bulkCounter = document.getElementById('bulkCounter');
-  const startBulkProcessButton = document.getElementById('startBulkProcess');
   const statusDiv = document.getElementById('status');
-
-  let bulkModeActive = false;
-  let selectedAnnotationType = null;
-  let selectedCount = 0;
 
   // Annotation button definitions
   const ANNOTATION_BUTTONS = [
-    { id: 'fillFieldsAgeUnknown',      mode: 'age-unknown',             action: 'fillFieldsAgeUnknown',           label: 'Age Unknown' },
-    { id: 'fillFieldsJuvenile',        mode: 'juvenile',                action: 'fillFieldsJuvenile',             label: 'Juvenile' },
-    { id: 'fillFieldsAlive',           mode: 'adult-alive',             action: 'fillFieldsAlive',                label: 'Adult Live' },
-    { id: 'fillFieldsDead',            mode: 'adult-dead',              action: 'fillFieldsDead',                 label: 'Adult Dead' },
-    { id: 'fillFieldsJuvenileDead',    mode: 'juvenile-dead',           action: 'fillFieldsJuvenileDead',         label: 'Juvenile Dead' },
-    { id: 'fillFieldsFlowers',         mode: 'plant-flowers',           action: 'fillFieldsPlantFlowers',         label: 'Flowers' },
-    { id: 'fillFieldsFruits',          mode: 'plant-fruits',            action: 'fillFieldsPlantFruits',          label: 'Fruits' },
-    { id: 'fillFieldsNoFlowersFruits', mode: 'plant-no-flowers-fruits', action: 'fillFieldsPlantNoFlowersFruits', label: 'No Flowers/Fruits' },
+    { id: 'fillFieldsAgeUnknown',      action: 'fillFieldsAgeUnknown'           },
+    { id: 'fillFieldsJuvenile',        action: 'fillFieldsJuvenile'             },
+    { id: 'fillFieldsAlive',           action: 'fillFieldsAlive'                },
+    { id: 'fillFieldsDead',            action: 'fillFieldsDead'                 },
+    { id: 'fillFieldsJuvenileDead',    action: 'fillFieldsJuvenileDead'         },
+    { id: 'fillFieldsFlowers',         action: 'fillFieldsPlantFlowers'         },
+    { id: 'fillFieldsFruits',          action: 'fillFieldsPlantFruits'          },
+    { id: 'fillFieldsNoFlowersFruits', action: 'fillFieldsPlantNoFlowersFruits' },
   ];
-
-  // Check if bulk mode is already active when popup opens
-  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { action: 'getBulkModeStatus' }, function(response) {
-      if (response && response.active) {
-        bulkModeActive = true;
-        selectedAnnotationType = response.annotationType;
-        selectedCount = response.selectedCount || 0;
-        updateBulkModeUI();
-      }
-    });
-  });
 
   const usernameDisplay = document.getElementById('username-display');
   const usernameInput = document.getElementById('username-input');
@@ -66,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
           action: 'startCustomBulkMode',
           searchUrl: url,
           jwt,
-          annotationType: selectedAnnotationType || 'adult-alive',
+          annotationType: 'adult-alive',
           sourceTabId: tab.id
         }, () => { void chrome.runtime.lastError; });
         window.close();
@@ -82,17 +63,11 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Data-driven annotation button handlers
-  ANNOTATION_BUTTONS.forEach(({ id, mode, action, label }) => {
+  ANNOTATION_BUTTONS.forEach(({ id, action }) => {
     const btn = document.getElementById(id);
     if (!btn) return;
 
-    btn.addEventListener('click', function(e) {
-      if (bulkModeActive) {
-        e.preventDefault();
-        selectAnnotationButton(btn, mode, label);
-        return;
-      }
-
+    btn.addEventListener('click', function() {
       statusDiv.textContent = 'Filling fields...';
 
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
@@ -112,156 +87,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  toggleBulkModeButton.addEventListener('click', function() {
-    if (bulkModeActive) {
-      // Exit bulk mode
-      statusDiv.textContent = 'Exiting bulk mode...';
-
-      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleBulkMode' }, function(response) {
-          bulkModeActive = false;
-          selectedAnnotationType = null;
-          selectedCount = 0;
-          updateBulkModeUI();
-          statusDiv.textContent = 'Bulk mode disabled';
-          statusDiv.style.color = 'green';
-        });
-      });
-    } else {
-      // Enter bulk mode
-      bulkModeActive = true;
-      selectedAnnotationType = null;
-      selectedCount = 0;
-      updateBulkModeUI();
-      statusDiv.textContent = 'Step 1: Choose annotation type above';
-      statusDiv.style.color = '#666';
-    }
-  });
-
-  // Function to update bulk mode UI
-  function updateBulkModeUI() {
-    if (bulkModeActive) {
-      document.body.classList.add('bulk-mode-active');
-      toggleBulkModeButton.textContent = 'Exit Bulk Mode';
-      toggleBulkModeButton.style.backgroundColor = '#f44336';
-
-      if (selectedAnnotationType) {
-        bulkCounter.classList.add('active');
-        bulkCounter.textContent = `${selectedCount} observations selected`;
-
-        // Highlight the selected annotation button
-        clearButtonSelections();
-        const button = getButtonForMode(selectedAnnotationType);
-        if (button) {
-          button.style.border = '3px solid #4CAF50';
-          button.style.transform = 'scale(1.05)';
-        }
-
-        if (selectedCount > 0) {
-          startBulkProcessButton.classList.add('active');
-          statusDiv.textContent = `Step 3: Click "Start Processing" to process ${selectedCount} observations`;
-          statusDiv.style.color = '#2196F3';
-        } else {
-          startBulkProcessButton.classList.remove('active');
-          statusDiv.textContent = 'Step 2: Click observations on the page to select them';
-          statusDiv.style.color = '#666';
-        }
-      } else {
-        bulkCounter.classList.remove('active');
-        startBulkProcessButton.classList.remove('active');
-        clearButtonSelections();
-      }
-    } else {
-      document.body.classList.remove('bulk-mode-active');
-      bulkCounter.classList.remove('active');
-      startBulkProcessButton.classList.remove('active');
-      toggleBulkModeButton.textContent = 'Bulk Mark Mode';
-      toggleBulkModeButton.style.backgroundColor = '#2196F3';
-      clearButtonSelections();
-    }
-  }
-
-  // Function to get button element for mode
-  function getButtonForMode(mode) {
-    const btn = ANNOTATION_BUTTONS.find(b => b.mode === mode);
-    return btn ? document.getElementById(btn.id) : null;
-  }
-
-  // Function to clear button selections
-  function clearButtonSelections() {
-    ANNOTATION_BUTTONS.forEach(({ id }) => {
-      const btn = document.getElementById(id);
-      if (btn) {
-        btn.style.border = '';
-        btn.style.transform = '';
-      }
-    });
-  }
-
-  // Function to select annotation button
-  function selectAnnotationButton(button, mode, description) {
-    if (!bulkModeActive) return;
-
-    selectedAnnotationType = mode;
-    statusDiv.textContent = `Step 2: Selected ${description}. Now click observations on the page.`;
-    statusDiv.style.color = '#4CAF50';
-
-    // Send annotation type to content script
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'setBulkAnnotationType', mode: mode }, function(response) {
-        if (response && response.success) {
-          updateBulkModeUI();
-        }
-      });
-    });
-  }
-
-  // Start bulk processing button
-  startBulkProcessButton.addEventListener('click', function() {
-    if (!selectedAnnotationType || selectedCount === 0) {
-      statusDiv.textContent = 'Please select observations and annotation type first';
-      statusDiv.style.color = 'red';
-      return;
-    }
-
-    statusDiv.textContent = `Processing ${selectedCount} observations...`;
-    statusDiv.style.color = '#FF9800';
-
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'processBulkSelection', mode: selectedAnnotationType }, function(response) {
-        if (chrome.runtime.lastError) {
-          statusDiv.textContent = 'Error processing observations';
-          statusDiv.style.color = 'red';
-        } else if (response && response.success) {
-          statusDiv.textContent = response.message;
-          statusDiv.style.color = 'green';
-          // Reset bulk mode after processing
-          setTimeout(() => {
-            bulkModeActive = false;
-            updateBulkModeUI();
-          }, 3000);
-        } else {
-          statusDiv.textContent = 'No observations selected';
-          statusDiv.style.color = 'orange';
-        }
-      });
-    });
-  });
-
-  // Listen for bulk mode updates from content script
-  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === 'bulkModeUpdate') {
-      if (request.active !== undefined) {
-        selectedCount = request.selectedCount || 0;
-        selectedAnnotationType = request.annotationType;
-        updateBulkModeUI();
-      }
-    } else if (request.action === 'bulkModeExited') {
-      bulkModeActive = false;
-      selectedAnnotationType = null;
-      selectedCount = 0;
-      updateBulkModeUI();
-    } else if (request.action === 'queueUpdated') {
+  // Listen for messages from background
+  chrome.runtime.onMessage.addListener(function(request) {
+    if (request.action === 'queueUpdated') {
       loadQueues();
     }
   });
