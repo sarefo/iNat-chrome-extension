@@ -3,8 +3,6 @@ function selectAllObservations() {
   if (!bulkSelectionMode || !bulkAnnotationMode) return;
 
   const observations = document.querySelectorAll('.thumbnail a[href*="/observations/"]');
-  console.log(`Found ${observations.length} observations to select`);
-
   observations.forEach((observationElement) => {
     const href = observationElement.getAttribute('href');
     if (!href || !href.includes('/observations/')) return;
@@ -16,13 +14,10 @@ function selectAllObservations() {
 
     if (!selectedObservations.has(observationId)) {
       selectedObservations.add(observationId);
-      observationDiv.style.border = '3px solid #4CAF50';
-      observationDiv.style.boxShadow = '0 0 15px rgba(76, 175, 80, 0.6)';
-      observationDiv.style.borderRadius = '8px';
+      markSelected(observationDiv);
     }
   });
 
-  console.log(`Selected ${selectedObservations.size} total observations`);
   saveCurrentCollection();
   updateSelectionUI();
 }
@@ -103,32 +98,24 @@ function updateSelectionUI() {
 
 // Function to handle observation click in bulk mode
 function handleObservationClick(event, observationElement) {
-  console.log('Observation clicked, bulk mode:', bulkSelectionMode);
   if (!bulkSelectionMode) return;
 
   event.preventDefault();
   event.stopPropagation();
 
   const href = observationElement.getAttribute('href');
-  console.log('Observation href:', href);
   if (!href || !href.includes('/observations/')) return;
 
   const observationDiv = observationElement.closest('.observation.observation-grid-cell');
-  if (!observationDiv) {
-    console.warn('Could not find parent observation div');
-    return;
-  }
+  if (!observationDiv) return;
 
   const observationId = href.split('/observations/')[1].split('?')[0].split('#')[0];
-  console.log('Observation ID:', observationId);
 
   if (event.ctrlKey) {
     // Ctrl+click: deselect (if selected) and open in new tab
     if (selectedObservations.has(observationId)) {
       selectedObservations.delete(observationId);
-      observationDiv.style.border = '';
-      observationDiv.style.boxShadow = '';
-      observationDiv.style.borderRadius = '';
+      markDeselected(observationDiv);
       saveCurrentCollection();
       updateSelectionUI();
     }
@@ -138,16 +125,10 @@ function handleObservationClick(event, observationElement) {
 
   if (selectedObservations.has(observationId)) {
     selectedObservations.delete(observationId);
-    observationDiv.style.border = '';
-    observationDiv.style.boxShadow = '';
-    observationDiv.style.borderRadius = '';
-    console.log('Deselected observation:', observationId);
+    markDeselected(observationDiv);
   } else {
     selectedObservations.add(observationId);
-    observationDiv.style.border = '3px solid #4CAF50';
-    observationDiv.style.boxShadow = '0 0 15px rgba(76, 175, 80, 0.6)';
-    observationDiv.style.borderRadius = '8px';
-    console.log('Selected observation:', observationId);
+    markSelected(observationDiv);
   }
 
   saveCurrentCollection();
@@ -170,11 +151,7 @@ function handleObservationContextMenu(event, observationElement) {
 
   if (selectedObservations.has(observationId)) {
     selectedObservations.delete(observationId);
-    if (observationDiv) {
-      observationDiv.style.border = '';
-      observationDiv.style.boxShadow = '';
-      observationDiv.style.borderRadius = '';
-    }
+    if (observationDiv) markDeselected(observationDiv);
     saveCurrentCollection();
     updateSelectionUI();
   }

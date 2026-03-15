@@ -25,11 +25,7 @@ function highlightRestoredObservations() {
     const id = href.split('/observations/')[1].split('?')[0].split('#')[0];
     if (selectedObservations.has(id)) {
       const div = link.closest('.observation.observation-grid-cell');
-      if (div) {
-        div.style.border = '3px solid #4CAF50';
-        div.style.boxShadow = '0 0 15px rgba(76, 175, 80, 0.6)';
-        div.style.borderRadius = '8px';
-      }
+      if (div) markSelected(div);
     }
   });
 }

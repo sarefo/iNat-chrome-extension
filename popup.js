@@ -385,7 +385,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   usernameDisplay.addEventListener('click', function() {
-    console.log('Username clicked');
     usernameDisplay.style.display = 'none';
     usernameInput.style.display = 'block';
     usernameInput.value = currentUsername;

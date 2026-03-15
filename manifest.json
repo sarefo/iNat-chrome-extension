@@ -21,7 +21,6 @@
       "content/bulk-state.js",
       "content/bulk-selection.js",
       "content/bulk-processing.js",
-      "content/annotation-filler.js",
       "content/bulk-ui.js",
       "content/content-main.js"
     ]
@@ -32,7 +31,6 @@
       "content/bulk-state.js",
       "content/bulk-selection.js",
       "content/bulk-processing.js",
-      "content/annotation-filler.js",
       "content/bulk-ui.js",
       "content/content-main.js"
     ],

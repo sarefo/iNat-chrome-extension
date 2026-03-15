@@ -1,5 +1,28 @@
 let isPreloadTabPending = false; // true when this tab was opened as a preload tab
 
+// If stored.expectedUrl has a taxon_id that the current URL is missing (iNat stripping),
+// redirect to the correct URL. Returns true if a redirect was initiated.
+function restoreTaxonIdIfStripped(stored) {
+  if (!stored.expectedUrl) return false;
+  const expected = new URL(stored.expectedUrl);
+  const current = new URL(window.location.href);
+  const expectedTaxonId = expected.searchParams.get('taxon_id');
+  if (!expectedTaxonId || current.searchParams.get('taxon_id')) {
+    // URL looks correct — clear expectedUrl so stale data doesn't persist
+    const cleanData = Object.assign({}, stored);
+    delete cleanData.expectedUrl;
+    chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: cleanData });
+    return false;
+  }
+  console.log(`[bulk] taxon_id stripped by iNat, retrying: ${stored.expectedUrl}`);
+  const retryData = Object.assign({}, stored);
+  delete retryData.expectedUrl; // prevent infinite redirect loop
+  chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: retryData }, () => {
+    window.location.href = stored.expectedUrl;
+  });
+  return true;
+}
+
 function showAnnotatedToast() {
   const existing = document.getElementById('innat-annotated-toast');
   if (existing) existing.remove();
@@ -51,11 +74,9 @@ const ANNOTATION_DISPLAY_LABELS = {
 
 function applyAnnotationLabelsToDOM(labelMap) {
   const annotationsTable = document.querySelector('.Annotations table');
-  console.log('[iNat ext] .Annotations table found:', !!annotationsTable);
   if (!annotationsTable) return false;
 
   const rows = annotationsTable.querySelectorAll('tbody tr');
-  console.log('[iNat ext] annotation rows found:', rows.length);
   let updated = 0;
 
   rows.forEach(row => {
@@ -64,10 +85,9 @@ function applyAnnotationLabelsToDOM(labelMap) {
 
     const attrLabel = (attrDiv.getAttribute('title') || attrDiv.textContent).trim();
     const matchKey = Object.keys(labelMap).find(k => attrLabel.includes(k));
-    if (!matchKey) { console.log('[iNat ext] no label match for attr:', attrLabel); return; }
+    if (!matchKey) return;
 
     const valueLabel = labelMap[matchKey];
-    console.log('[iNat ext] updating', attrLabel, '->', valueLabel);
 
     // If already showing a value label (already annotated state), update it
     const valueSpan = row.querySelector('td.value span.value-label');
@@ -98,17 +118,13 @@ function applyAnnotationLabelsToDOM(labelMap) {
     }
   });
 
-  console.log('[iNat ext] updated', updated, 'annotation rows');
   return updated > 0;
 }
 
 function refreshAnnotationSection(obsId, mode) {
   // Apply immediately from known mode labels (no timing dependency)
   const knownLabels = ANNOTATION_DISPLAY_LABELS[mode];
-  if (knownLabels) {
-    console.log('[iNat ext] applying mode-based labels immediately for mode:', mode);
-    applyAnnotationLabelsToDOM(knownLabels);
-  }
+  if (knownLabels) applyAnnotationLabelsToDOM(knownLabels);
 
   // Also fetch from API after a short delay to get accurate labels (e.g. exact juvenile stage)
   setTimeout(() => {
@@ -116,7 +132,6 @@ function refreshAnnotationSection(obsId, mode) {
       .then(r => r.json())
       .then(data => {
         const annotations = data.results?.[0]?.annotations;
-        console.log('[iNat ext] API returned', annotations?.length ?? 0, 'annotations');
         if (!annotations?.length) return;
 
         const apiLabelMap = {};
@@ -133,7 +148,6 @@ function refreshAnnotationSection(obsId, mode) {
 
 // Single message listener for all content script messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Message received in content script:', request.action);
 
   // Provide JWT from page meta tag (used by background api-annotator.js)
   if (request.action === 'getJwt') {
@@ -167,7 +181,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'toggleBulkMode') {
-    console.log('toggleBulkMode action received');
     if (!isObservationsListPage()) {
       sendResponse({ success: false, message: 'Not on a supported observations page' });
       return true;
@@ -177,7 +190,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       exitBulkMode();
       sendResponse({ success: true, message: 'Bulk mode disabled' });
     } else {
-      console.log('Creating bulk mode UI from toggleBulkMode');
       createBulkModeUI();
       setupObservationClickHandlers();
       sendResponse({ success: true, message: 'Bulk mode enabled - click observations to select them' });
@@ -186,7 +198,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'setBulkAnnotationType') {
-    console.log('setBulkAnnotationType action received with mode:', request.mode);
     if (!isObservationsListPage()) {
       sendResponse({ success: false, message: 'Not on a supported observations page' });
       return true;
@@ -195,7 +206,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     bulkAnnotationMode = request.mode;
 
     if (!bulkModeButtons) {
-      console.log('Creating bulk mode UI from setBulkAnnotationType');
       createBulkModeUI();
       setupObservationClickHandlers();
     }
@@ -277,24 +287,7 @@ function waitForObservations(callback, maxWaitMs = 10000) {
 function activatePreloadTab(stored) {
   if (!stored || !stored.annotationType) return;
 
-  if (stored.expectedUrl) {
-    const expected = new URL(stored.expectedUrl);
-    const current  = new URL(window.location.href);
-    const expectedTaxonId = expected.searchParams.get('taxon_id');
-    const currentTaxonId  = current.searchParams.get('taxon_id');
-    if (expectedTaxonId && !currentTaxonId) {
-      console.log(`[bulk] preload tab: taxon_id stripped, retrying: ${stored.expectedUrl}`);
-      const retryData = Object.assign({}, stored);
-      delete retryData.expectedUrl;
-      chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: retryData }, () => {
-        window.location.href = stored.expectedUrl;
-      });
-      return;
-    }
-    const cleanData = Object.assign({}, stored);
-    delete cleanData.expectedUrl;
-    chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: cleanData });
-  }
+  if (restoreTaxonIdIfStripped(stored)) return;
 
   selectedObservations = new Set(stored.observations || []);
   bulkAnnotationMode = stored.annotationType;
@@ -315,8 +308,6 @@ function activatePreloadTab(stored) {
 
 // Initialization: restore state and set up observers on observations list pages
 if (isObservationsListPage()) {
-  console.log('On supported observations list page');
-
   // Restore in-progress accumulator from storage (handles page navigation)
   chrome.storage.local.get([STORAGE_KEY_CURRENT, 'innat_preload'], result => {
     const stored = result[STORAGE_KEY_CURRENT];
@@ -359,28 +350,8 @@ if (isObservationsListPage()) {
 
     if (!stored || !stored.annotationType) return; // annotation type is enough to restore
 
-    // iNat sometimes strips taxon_id when serving a paginated page. Detect and
-    // retry: if we have an expectedUrl with taxon_id but the current URL lacks it,
-    // redirect to the correct URL (clear expectedUrl first to avoid a retry loop).
-    if (stored.expectedUrl) {
-      const expected = new URL(stored.expectedUrl);
-      const current  = new URL(window.location.href);
-      const expectedTaxonId = expected.searchParams.get('taxon_id');
-      const currentTaxonId  = current.searchParams.get('taxon_id');
-      if (expectedTaxonId && !currentTaxonId) {
-        console.log(`[bulk] taxon_id missing from URL (iNat stripped it). Retrying: ${stored.expectedUrl}`);
-        const retryData = Object.assign({}, stored);
-        delete retryData.expectedUrl; // prevent infinite redirect loop
-        chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: retryData }, () => {
-          window.location.href = stored.expectedUrl;
-        });
-        return;
-      }
-      // URL looks correct — clear expectedUrl so stale data doesn't persist
-      const cleanData = Object.assign({}, stored);
-      delete cleanData.expectedUrl;
-      chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: cleanData });
-    }
+    // iNat sometimes strips taxon_id when serving a paginated page — detect and retry.
+    if (restoreTaxonIdIfStripped(stored)) return;
 
     selectedObservations = new Set(stored.observations || []);
     bulkAnnotationMode = stored.annotationType;

@@ -16,6 +16,19 @@ function isObservationsListPage() {
          url.includes('/observations/identify');
 }
 
+// Observation selection highlight helpers
+function markSelected(div) {
+  div.style.border = '3px solid #4CAF50';
+  div.style.boxShadow = '0 0 15px rgba(76, 175, 80, 0.6)';
+  div.style.borderRadius = '8px';
+}
+
+function markDeselected(div) {
+  div.style.border = '';
+  div.style.boxShadow = '';
+  div.style.borderRadius = '';
+}
+
 // Function to get display name for annotation mode
 function getAnnotationDisplayName(mode) {
   switch(mode) {

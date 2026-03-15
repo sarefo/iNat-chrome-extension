@@ -74,8 +74,6 @@ async function processBulkSelection(mode = 'adult-alive') {
           progressTracker.completed = processed + errors;
           progressTracker.errors = errors;
           progressTracker.updateUI();
-
-          console.log(`Processing completed: ${processed} successful, ${errors} errors`);
           resolve(results);
         } else {
           reject(new Error(response.error));
@@ -104,16 +102,11 @@ async function processBulkSelection(mode = 'adult-alive') {
 
 // Handle bulk processing progress updates from background script
 function handleBulkProgressUpdate(request) {
-  console.log(`Progress update received: ${request.completed}/${request.total} (${request.verified || 0} verified, ${request.errors} errors, ${request.remaining} remaining)`);
-
   const counter = document.getElementById('selection-counter');
   const statusText = document.getElementById('bulk-status-text');
 
   if (counter) {
     counter.textContent = `${request.completed}/${request.total} observations`;
-    console.log(`Updated counter: ${counter.textContent}`);
-  } else {
-    console.warn('Counter element not found');
   }
 
   if (statusText) {
@@ -124,8 +117,6 @@ function handleBulkProgressUpdate(request) {
       const failedCount = request.errors || 0;
       const unverifiedCount = request.completed - verifiedCount - failedCount;
       const totalTimeText = request.elapsedTime ? ` in ${formatElapsedTime(request.elapsedTime)}` : '';
-
-      console.log(`Showing completion message: ${verifiedCount} verified, ${failedCount} failed, ${unverifiedCount} unverified`);
 
       if (verifiedCount === request.total) {
         statusText.textContent = `Successfully verified all ${verifiedCount} observations${totalTimeText}!`;
@@ -138,20 +129,12 @@ function handleBulkProgressUpdate(request) {
         statusText.style.color = '#f44336';
       }
 
-      // Auto-close overlay after showing final results
-      console.log('All processing complete, scheduling overlay close in 7 seconds');
-      setTimeout(() => {
-        console.log('Auto-closing overlay after completion');
-        exitBulkMode();
-      }, 7000);
+      setTimeout(() => exitBulkMode(), 7000);
     } else {
       const verifiedText = request.verified !== undefined ? ` (${request.verified} verified)` : '';
       const timeText = request.elapsedTime ? ` • ${formatElapsedTime(request.elapsedTime)}` : '';
       statusText.textContent = `Processing observations... ${request.completed}/${request.total}${verifiedText}${timeText}`;
       statusText.style.color = '#FF9800';
     }
-    console.log(`Updated status: ${statusText.textContent}`);
-  } else {
-    console.warn('Status text element not found');
   }
 }

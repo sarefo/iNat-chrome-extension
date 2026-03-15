@@ -75,11 +75,8 @@ function autoScrollToRevealAllObservations(expectedCount = 0) {
     let scrollCount = 0;
     const maxScrollAttempts = 150;
 
-    console.log(`Starting auto-scroll (expecting ${expectedCount || '?'} observations)...`);
-
     function performScrollStep() {
       if (scrollCount >= maxScrollAttempts) {
-        console.log('Auto-scroll: reached max attempts, stopping');
         resolve();
         return;
       }
@@ -89,12 +86,8 @@ function autoScrollToRevealAllObservations(expectedCount = 0) {
       const reachedBottom = currentScrollY + windowHeight >= documentHeight - 100;
       const allLoaded = expectedCount > 0 && countLoadedObservations() >= expectedCount;
 
-      console.log(`Scroll step ${scrollCount + 1}: Y=${currentScrollY}, DocHeight=${documentHeight}, atBottom=${reachedBottom}, loaded=${allLoaded}`);
-
       if (reachedBottom) {
         if (allLoaded) {
-          // All observations present and at the bottom — done, no need to wait
-          console.log(`Auto-scroll: all ${expectedCount} observations loaded at bottom, done`);
           resolve();
           return;
         }
@@ -103,13 +96,9 @@ function autoScrollToRevealAllObservations(expectedCount = 0) {
         setTimeout(() => {
           const newHeight = document.documentElement.scrollHeight;
           if (newHeight > heightBeforeWait) {
-            // New content loaded, keep scrolling
-            console.log(`Auto-scroll: new content loaded (${heightBeforeWait} → ${newHeight}), continuing`);
             scrollCount++;
             performScrollStep();
           } else {
-            // Height unchanged — truly at the bottom
-            console.log('Auto-scroll: no new content after wait, done');
             resolve();
           }
         }, loadWaitTime);
@@ -128,14 +117,7 @@ function autoScrollToRevealAllObservations(expectedCount = 0) {
 
 // Function to create bulk mode UI
 function createBulkModeUI() {
-  console.log('createBulkModeUI called - checking conditions...');
-
-  if (bulkModeButtons || !isObservationsListPage()) {
-    console.log('Exiting createBulkModeUI early due to conditions');
-    return;
-  }
-
-  console.log('Proceeding with bulk mode UI creation...');
+  if (bulkModeButtons || !isObservationsListPage()) return;
 
   const container = document.createElement('div');
   container.id = 'bulk-mode-container';
@@ -320,8 +302,6 @@ function createBulkModeUI() {
     if (checkAndFixTaxonId()) return; // wrong URL — redirect in progress
     const expected = getExpectedObservationCount();
     if (expected > 0 && countLoadedObservations() >= expected) {
-      // Background preload already loaded everything — skip scroll
-      console.log(`[bulk] preload complete: all ${expected} observations already loaded`);
       setReadyStatus();
       return;
     }
@@ -349,7 +329,6 @@ function createBulkModeUI() {
       const taxonId = new URL(window.location.href).searchParams.get('taxon_id') || '';
       if (total > 96) {
         const lastPage = Math.ceil(total / 96);
-        console.log(`[bulk] ${total} observations → jumping to last page ${lastPage}`);
         const url = new URL(window.location.href);
         url.searchParams.set('page', lastPage);
         const data = {
@@ -410,18 +389,13 @@ function createBulkModeUI() {
 
 // Function to exit bulk mode
 function exitBulkMode() {
-  console.log('Exiting bulk mode');
   chrome.storage.local.remove([STORAGE_KEY_CURRENT]);
   bulkSelectionMode = false;
   bulkAnnotationMode = null;
   selectedObservations.clear();
 
   // Remove selection styling from all observation divs
-  document.querySelectorAll('.observation.observation-grid-cell').forEach(observationDiv => {
-    observationDiv.style.border = '';
-    observationDiv.style.boxShadow = '';
-    observationDiv.style.borderRadius = '';
-  });
+  document.querySelectorAll('.observation.observation-grid-cell').forEach(markDeselected);
 
   // Remove bulk mode UI
   if (bulkModeButtons) {
