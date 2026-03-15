@@ -4,8 +4,11 @@ let allObservations = []; // [{ id, photoUrl }]
 let selectedIds = new Set();
 let currentPage = 1;
 let totalCount = 0;
+let totalApiPages = 0;
+let fetchedApiPages = 0;
 let annotationType = 'adult-alive';
 let dataStatus = 'loading';
+let searchUrl = null;
 
 // ---------------------------------------------------------------------------
 // Storage helpers
@@ -123,10 +126,24 @@ function updateStatusInfo() {
     html += ` &nbsp;|&nbsp; <span class="loading">Fetching ${loaded} / ${totalCount || '?'}</span>`;
   } else if (dataStatus === 'error') {
     html += ` &nbsp;|&nbsp; <span style="color:red">Error loading data</span>`;
+  } else if (dataStatus === 'partial') {
+    html += ` &nbsp;|&nbsp; ${loaded} / ${totalCount} loaded &nbsp;|&nbsp; <span style="color:#FF9800">reach last page to load more</span>`;
   } else {
     html += ` &nbsp;|&nbsp; ${loaded} observations`;
   }
   info.innerHTML = html;
+}
+
+// ---------------------------------------------------------------------------
+// Fetch more (lazy loading)
+// ---------------------------------------------------------------------------
+
+function triggerFetchMore() {
+  if (!searchUrl || dataStatus !== 'partial') return;
+  chrome.runtime.sendMessage(
+    { action: 'fetchMoreObservations', searchUrl },
+    () => { void chrome.runtime.lastError; }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -246,19 +263,24 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (!data) return;
 
   const prevStatus = dataStatus;
+  const prevLength = allObservations.length;
   allObservations = data.observations || [];
   totalCount = data.totalCount || allObservations.length;
+  totalApiPages = data.totalApiPages || 0;
+  fetchedApiPages = data.fetchedApiPages || 0;
   dataStatus = data.status;
+  if (data.searchUrl) searchUrl = data.searchUrl;
   // Don't overwrite in-session selections from storage changes
 
   updateStatusInfo();
   updateToolbar();
 
-  // Refresh grid when first data arrives or loading completes
-  if (prevStatus === 'loading' && allObservations.length > 0) {
+  // Refresh grid when first data arrives
+  if (prevStatus === 'loading' && allObservations.length > 0 && prevLength === 0) {
     renderGrid();
   }
-  if (prevStatus === 'loading' && dataStatus === 'ready') {
+  // When a fetch-more batch completes, re-render if user is still on the (now non-last) page
+  if (allObservations.length > prevLength && prevLength > 0 && (dataStatus === 'ready' || dataStatus === 'partial')) {
     preloadAdjacentPages();
   }
 });
@@ -286,6 +308,9 @@ document.getElementById('btn-next').addEventListener('click', () => {
   window.scrollTo(0, 0);
   render();
   preloadAdjacentPages();
+  if (currentPage === totalDisplayPages() && dataStatus === 'partial') {
+    triggerFetchMore();
+  }
 });
 
 document.getElementById('btn-select-page').addEventListener('click', () => {
@@ -367,8 +392,11 @@ async function init() {
   allObservations = data.observations || [];
   selectedIds = new Set(data.selectedIds || []);
   totalCount = data.totalCount || 0;
+  totalApiPages = data.totalApiPages || 0;
+  fetchedApiPages = data.fetchedApiPages || 0;
   annotationType = data.annotationType || 'adult-alive';
   dataStatus = data.status || 'loading';
+  searchUrl = data.searchUrl || null;
 
   document.getElementById('annotation-select').value = annotationType;
 

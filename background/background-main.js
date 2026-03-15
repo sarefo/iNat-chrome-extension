@@ -1,6 +1,6 @@
 import { processBulkObservationsViaApi, annotateSingleObsViaApi } from './api-annotator.js';
 import { processQueuedObservations } from './queue-manager.js';
-import { startCustomBulkFetch } from './obs-fetcher.js';
+import { startCustomBulkFetch, fetchMoreObservations } from './obs-fetcher.js';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'annotateSingleObs') {
@@ -13,6 +13,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startCustomBulkMode') {
     startCustomBulkFetch(request.searchUrl, request.annotationType, request.jwt, request.sourceTabId)
       .catch(err => console.error('[custom bulk] fetch failed:', err));
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (request.action === 'fetchMoreObservations') {
+    fetchMoreObservations(request.searchUrl)
+      .catch(err => console.error('[obs-fetcher] fetch more failed:', err));
     sendResponse({ success: true });
     return true;
   }

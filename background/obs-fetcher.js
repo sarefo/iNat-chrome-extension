@@ -2,6 +2,7 @@ const API_BASE = 'https://api.inaturalist.org/v1';
 const PER_PAGE = 200;
 const PARALLEL_BATCH = 3;
 const BATCH_DELAY_MS = 1000;
+const MAX_API_PAGES_BATCH = 5; // 5 API pages × 200 obs = 1000 obs ≈ 10 display pages
 
 // Params from the iNat page URL that don't translate to the API
 const SKIP_PARAMS = new Set(['page', 'per_page', 'view', 'utf8', 'tab', 'locale', 'verifiable']);
@@ -48,10 +49,29 @@ async function patchStorage(patch) {
   await chrome.storage.local.set({ innat_custom_bulk: { ...data, ...patch } });
 }
 
-// Fetch all observations for the given iNat page URL, updating storage progressively.
+async function fetchBatch(params, startPage, endPage, existingObs) {
+  let allObs = existingObs;
+  for (let start = startPage; start <= endPage; start += PARALLEL_BATCH) {
+    const stored = await chrome.storage.local.get(['innat_custom_bulk']);
+    if (!stored.innat_custom_bulk || stored.innat_custom_bulk.status === 'cancelled') return null;
+
+    const batch = [];
+    for (let p = start; p < start + PARALLEL_BATCH && p <= endPage; p++) {
+      batch.push(fetchPage(params, p));
+    }
+    const results = await Promise.all(batch);
+    for (const r of results) allObs = allObs.concat(extractObs(r.results));
+
+    const fetchedSoFar = Math.min(start + PARALLEL_BATCH - 1, endPage);
+    await patchStorage({ observations: allObs, fetchedApiPages: fetchedSoFar });
+    if (start + PARALLEL_BATCH <= endPage) await sleep(BATCH_DELAY_MS);
+  }
+  return allObs;
+}
+
+// Fetch the first batch of observations for the given iNat page URL.
 // Opens custom-bulk.html immediately after the first page arrives.
 export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourceTabId) {
-  // Initialize storage with loading state
   await chrome.storage.local.set({
     innat_custom_bulk: {
       status: 'loading',
@@ -59,13 +79,14 @@ export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourc
       annotationType,
       jwt: jwt || null,
       totalCount: 0,
+      totalApiPages: 0,
+      fetchedApiPages: 0,
       observations: [],
       selectedIds: [],
       createdAt: Date.now()
     }
   });
 
-  // Open the custom page immediately, then close the source tab
   chrome.tabs.create({ url: chrome.runtime.getURL('custom-bulk.html') }, () => {
     if (sourceTabId) chrome.tabs.remove(sourceTabId, () => { void chrome.runtime.lastError; });
   });
@@ -73,36 +94,48 @@ export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourc
   try {
     const params = buildApiParams(searchUrl);
 
-    // Page 1: get total and first batch fast
     const first = await fetchPage(params, 1);
     const total = first.total_results;
+    const totalApiPages = Math.ceil(total / PER_PAGE);
+    const batchEnd = Math.min(totalApiPages, MAX_API_PAGES_BATCH);
+
     let allObs = extractObs(first.results);
+    await patchStorage({ observations: allObs, totalCount: total, totalApiPages, fetchedApiPages: 1 });
 
-    await patchStorage({ observations: allObs, totalCount: total });
-
-    if (total > PER_PAGE) {
-      const totalPages = Math.ceil(total / PER_PAGE);
-
-      for (let start = 2; start <= totalPages; start += PARALLEL_BATCH) {
-        // Abort if user cancelled
-        const stored = await chrome.storage.local.get(['innat_custom_bulk']);
-        if (!stored.innat_custom_bulk || stored.innat_custom_bulk.status === 'cancelled') return;
-
-        const batch = [];
-        for (let p = start; p < start + PARALLEL_BATCH && p <= totalPages; p++) {
-          batch.push(fetchPage(params, p));
-        }
-        const results = await Promise.all(batch);
-        for (const r of results) allObs = allObs.concat(extractObs(r.results));
-
-        await patchStorage({ observations: allObs });
-        await sleep(BATCH_DELAY_MS);
-      }
+    if (batchEnd > 1) {
+      allObs = await fetchBatch(params, 2, batchEnd, allObs);
+      if (allObs === null) return; // cancelled
     }
 
-    await patchStorage({ status: 'ready', observations: allObs });
+    const isDone = batchEnd >= totalApiPages;
+    await patchStorage({ status: isDone ? 'ready' : 'partial', observations: allObs, fetchedApiPages: batchEnd });
   } catch (err) {
     console.error('[obs-fetcher] fetch failed:', err);
+    await patchStorage({ status: 'error', error: err.message });
+  }
+}
+
+// Fetch the next batch of API pages, appending to existing observations.
+export async function fetchMoreObservations(searchUrl) {
+  const stored = await chrome.storage.local.get(['innat_custom_bulk']);
+  const data = stored.innat_custom_bulk;
+  if (!data || data.status !== 'partial') return;
+
+  const { fetchedApiPages, totalApiPages } = data;
+  const startPage = fetchedApiPages + 1;
+  const endPage = Math.min(totalApiPages, fetchedApiPages + MAX_API_PAGES_BATCH);
+
+  await patchStorage({ status: 'loading' });
+
+  try {
+    const params = buildApiParams(searchUrl);
+    let allObs = await fetchBatch(params, startPage, endPage, data.observations || []);
+    if (allObs === null) return; // cancelled
+
+    const isDone = endPage >= totalApiPages;
+    await patchStorage({ status: isDone ? 'ready' : 'partial', observations: allObs, fetchedApiPages: endPage });
+  } catch (err) {
+    console.error('[obs-fetcher] fetch more failed:', err);
     await patchStorage({ status: 'error', error: err.message });
   }
 }
