@@ -1,3 +1,24 @@
+// Remove lazy-loading from all images (existing and future) so thumbnails load
+// as soon as their DOM cards are added, without needing to scroll into view.
+function stripLazyLoading() {
+  function eagerify(img) {
+    if (img.loading === 'lazy') img.loading = 'eager';
+    // Handle data-src patterns (lazysizes / custom loaders)
+    if (img.dataset.src && !img.getAttribute('src')) img.src = img.dataset.src;
+    if (img.dataset.srcset && !img.getAttribute('srcset')) img.srcset = img.dataset.srcset;
+  }
+  document.querySelectorAll('img').forEach(eagerify);
+  new MutationObserver(mutations => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.tagName === 'IMG') { eagerify(node); continue; }
+        node.querySelectorAll('img').forEach(eagerify);
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+}
+
 // Count unique observation IDs currently rendered on the page
 function countLoadedObservations() {
   const ids = new Set();
@@ -44,6 +65,7 @@ function getExpectedObservationCount() {
 
 // Function to auto-scroll page to reveal all observations
 function autoScrollToRevealAllObservations(expectedCount = 0) {
+  stripLazyLoading();
   return new Promise((resolve) => {
     const windowHeight = window.innerHeight;
     const scrollStep = 600;
@@ -291,13 +313,21 @@ function createBulkModeUI() {
       statusText.style.color = bulkAnnotationMode ? '#4CAF50' : '#FF9800';
     }
     updatePrevPageButton();
+    triggerPrevPagePreload();
   }
 
   function doAutoScroll() {
     if (checkAndFixTaxonId()) return; // wrong URL — redirect in progress
+    const expected = getExpectedObservationCount();
+    if (expected > 0 && countLoadedObservations() >= expected) {
+      // Background preload already loaded everything — skip scroll
+      console.log(`[bulk] preload complete: all ${expected} observations already loaded`);
+      setReadyStatus();
+      return;
+    }
     statusText.textContent = 'Auto-scrolling to reveal all observations...';
     statusText.style.color = '#FF9800';
-    autoScrollToRevealAllObservations(getExpectedObservationCount()).then(setReadyStatus).catch(setReadyStatus);
+    autoScrollToRevealAllObservations(expected).then(setReadyStatus).catch(setReadyStatus);
   }
 
   const currentPage = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
@@ -399,6 +429,9 @@ function exitBulkMode() {
     bulkModeButtons = null;
   }
 
+  // Close any background preload tab
+  chrome.runtime.sendMessage({ action: 'closePreloadTab' }, () => { void chrome.runtime.lastError; });
+
   // Notify popup
   chrome.runtime.sendMessage({
     action: 'bulkModeExited'
@@ -407,6 +440,23 @@ function exitBulkMode() {
       // Silently ignore
     }
   });
+}
+
+// Open the previous page in a background tab so it's ready when the user navigates there
+function triggerPrevPagePreload() {
+  const url = new URL(window.location.href);
+  const currentPage = parseInt(url.searchParams.get('page') || '1', 10);
+  if (currentPage <= 1) return;
+  if (!bulkTotalObservations) return;
+  const prevUrl = new URL(url.toString());
+  prevUrl.searchParams.set('page', currentPage - 1);
+  if (bulkTaxonId) prevUrl.searchParams.set('taxon_id', bulkTaxonId);
+  chrome.runtime.sendMessage({
+    action: 'openPreloadTab',
+    url: prevUrl.toString(),
+    totalObservations: bulkTotalObservations,
+    targetPage: currentPage - 1
+  }, () => { void chrome.runtime.lastError; });
 }
 
 // Navigate to the previous page, preserving bulk mode state across the navigation
@@ -430,6 +480,11 @@ function goToPrevPage() {
     taxonId: bulkTaxonId
   };
   chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: data }, () => {
-    window.location.href = url.toString();
+    chrome.runtime.sendMessage({ action: 'switchToPreloadTab' }, response => {
+      if (!response?.success) {
+        // No preload tab available — fall back to normal navigation
+        window.location.href = url.toString();
+      }
+    });
   });
 }

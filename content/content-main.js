@@ -1,3 +1,5 @@
+let isPreloadTabPending = false; // true when this tab was opened as a preload tab
+
 function showAnnotatedToast() {
   const existing = document.getElementById('innat-annotated-toast');
   if (existing) existing.remove();
@@ -146,6 +148,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'activatePreload') {
+    if (isPreloadTabPending && !bulkModeButtons) {
+      isPreloadTabPending = false;
+      chrome.storage.local.get([STORAGE_KEY_CURRENT], fresh => activatePreloadTab(fresh[STORAGE_KEY_CURRENT]));
+    }
+    sendResponse({ received: true });
+    return true;
+  }
+
   if (request.action === 'getBulkModeStatus') {
     sendResponse({
       active: bulkSelectionMode,
@@ -247,13 +258,105 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+function waitForObservations(callback, maxWaitMs = 10000) {
+  const deadline = Date.now() + maxWaitMs;
+  function check() {
+    if (document.querySelectorAll('.thumbnail a[href*="/observations/"]').length > 0) {
+      callback();
+    } else if (Date.now() < deadline) {
+      setTimeout(check, 300);
+    } else {
+      console.log('waitForObservations timed out, proceeding anyway');
+      callback();
+    }
+  }
+  check();
+}
+
+// Called when a preload tab becomes active: restore state and launch bulk UI
+function activatePreloadTab(stored) {
+  if (!stored || !stored.annotationType) return;
+
+  if (stored.expectedUrl) {
+    const expected = new URL(stored.expectedUrl);
+    const current  = new URL(window.location.href);
+    const expectedTaxonId = expected.searchParams.get('taxon_id');
+    const currentTaxonId  = current.searchParams.get('taxon_id');
+    if (expectedTaxonId && !currentTaxonId) {
+      console.log(`[bulk] preload tab: taxon_id stripped, retrying: ${stored.expectedUrl}`);
+      const retryData = Object.assign({}, stored);
+      delete retryData.expectedUrl;
+      chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: retryData }, () => {
+        window.location.href = stored.expectedUrl;
+      });
+      return;
+    }
+    const cleanData = Object.assign({}, stored);
+    delete cleanData.expectedUrl;
+    chrome.storage.local.set({ [STORAGE_KEY_CURRENT]: cleanData });
+  }
+
+  selectedObservations = new Set(stored.observations || []);
+  bulkAnnotationMode = stored.annotationType;
+  bulkJumpedToLastPage = stored.jumpedToLastPage || false;
+  bulkTotalObservations = stored.totalObservations || 0;
+  bulkTaxonId = stored.taxonId || '';
+  bulkSelectionMode = true;
+
+  waitForObservations(() => {
+    createBulkModeUI();
+    setupObservationClickHandlers();
+    setTimeout(() => {
+      highlightRestoredObservations();
+      updateSelectionUI();
+    }, 500);
+  });
+}
+
 // Initialization: restore state and set up observers on observations list pages
 if (isObservationsListPage()) {
   console.log('On supported observations list page');
 
   // Restore in-progress accumulator from storage (handles page navigation)
-  chrome.storage.local.get([STORAGE_KEY_CURRENT], result => {
+  chrome.storage.local.get([STORAGE_KEY_CURRENT, 'innat_preload'], result => {
     const stored = result[STORAGE_KEY_CURRENT];
+    const preload = result.innat_preload;
+
+    // Detect if this tab was opened as a preload tab (background tab for next navigation).
+    // A preload entry is valid for up to 1 hour; match on the page number.
+    if (preload?.tabId && preload?.url && preload?.createdAt && Date.now() - preload.createdAt < 3600000) {
+      try {
+        const preloadPage = new URL(preload.url).searchParams.get('page');
+        const currentPage = new URL(window.location.href).searchParams.get('page');
+        if (preloadPage && preloadPage === currentPage) {
+          // The background service worker injects the visibilityState spoof into the
+          // main world via chrome.scripting.executeScript once this tab finishes loading,
+          // so iNat's scroll handlers treat this hidden tab as visible.
+          isPreloadTabPending = true;
+
+          // Strip lazy-loading immediately so images load as cards are added to DOM.
+          stripLazyLoading();
+
+          // Start scrolling immediately in the background.
+          const lastPage = Math.ceil(preload.totalObservations / 96);
+          const expectedCount = preload.targetPage < lastPage ? 96
+            : preload.totalObservations - (lastPage - 1) * 96;
+          waitForObservations(() => autoScrollToRevealAllObservations(expectedCount));
+
+          // Primary activation: background sends 'activatePreload' message (handled above).
+          // Fallback: visibilitychange in case the message is delayed or lost.
+          // Content scripts read document.hidden from the real C++ state, unaffected
+          // by the MAIN-world spoof, so it correctly reflects actual tab visibility.
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden || !isPreloadTabPending || bulkModeButtons) return;
+            isPreloadTabPending = false;
+            chrome.storage.local.get([STORAGE_KEY_CURRENT], fresh => activatePreloadTab(fresh[STORAGE_KEY_CURRENT]));
+          });
+          return;
+        }
+      } catch (e) { /* ignore URL parse errors */ }
+    }
+
     if (!stored || !stored.annotationType) return; // annotation type is enough to restore
 
     // iNat sometimes strips taxon_id when serving a paginated page. Detect and
@@ -297,21 +400,6 @@ if (isObservationsListPage()) {
       }, 500);
     });
   });
-
-  function waitForObservations(callback, maxWaitMs = 10000) {
-    const deadline = Date.now() + maxWaitMs;
-    function check() {
-      if (document.querySelectorAll('.thumbnail a[href*="/observations/"]').length > 0) {
-        callback();
-      } else if (Date.now() < deadline) {
-        setTimeout(check, 300);
-      } else {
-        console.log('waitForObservations timed out, proceeding anyway');
-        callback();
-      }
-    }
-    check();
-  }
 
   // Re-setup handlers when page content changes (for pagination)
   let setupTimeout = null;

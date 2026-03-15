@@ -15,7 +15,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:pyinaturalist.readthedocs.io)",
       "WebFetch(domain:inaturalist.ala.org.au)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__playwright__browser_tabs"
     ],
     "deny": []
   }
