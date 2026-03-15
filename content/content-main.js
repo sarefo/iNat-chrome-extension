@@ -129,6 +129,14 @@ function refreshAnnotationSection(mode) {
 // Single message listener for all content script messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
+  // Extract taxon ID from the current page (works on observation and taxa pages)
+  if (request.action === 'getTaxonId') {
+    const link = document.querySelector('a[href*="/taxa/"]');
+    const match = link?.href.match(/\/taxa\/(\d+)/);
+    sendResponse({ taxonId: match ? match[1] : null });
+    return true;
+  }
+
   // Provide JWT from page meta tag (used by background api-annotator.js)
   if (request.action === 'getJwt') {
     const jwt = document.querySelector('meta[name="inaturalist-api-token"]')?.content;

@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
       currentUsername = result.username;
       usernameDisplay.textContent = currentUsername || '(no username)';
     }
+    document.getElementById('openUrlUsername').textContent = currentUsername || 'all';
   });
 
   document.getElementById('startCustomBulkMode').addEventListener('click', function() {
@@ -60,6 +61,64 @@ document.addEventListener('DOMContentLoaded', function() {
     const userParam = currentUsername ? `&user_id=${currentUsername}` : '';
     const url = `${baseUrl}${userParam}&without_term_id=17`;
     chrome.tabs.create({ url });
+  });
+
+  document.getElementById('openUrlTaxon').addEventListener('click', function() {
+    chrome.tabs.query({ active: true, currentWindow: true }, async function(tabs) {
+      const tab = tabs[0];
+      const tabUrl = tab?.url || '';
+      // Taxa page: /taxa/418321-Taxon-Name
+      const taxaMatch = tabUrl.match(/inaturalist\.org\/taxa\/(\d+)/);
+      if (taxaMatch) {
+        chrome.tabs.create({ url: `https://www.inaturalist.org/observations?taxon_id=${taxaMatch[1]}&without_term_id=17` });
+        return;
+      }
+
+      // Single observation page: /observations/12345
+      const obsMatch = tabUrl.match(/inaturalist\.org\/observations\/(\d+)/);
+      if (obsMatch) {
+        // Try DOM first via content script
+        chrome.tabs.sendMessage(tab.id, { action: 'getTaxonId' }, async function(response) {
+          const taxonId = response?.taxonId;
+          if (taxonId) {
+            chrome.tabs.create({ url: `https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=17` });
+            return;
+          }
+          // Fallback: API fetch
+          try {
+            const resp = await fetch(`https://api.inaturalist.org/v1/observations/${obsMatch[1]}`);
+            const data = await resp.json();
+            const apiTaxonId = data?.results?.[0]?.taxon?.id;
+            if (!apiTaxonId) {
+              statusDiv.textContent = 'Could not find taxon for this observation';
+              statusDiv.style.color = 'red';
+              return;
+            }
+            chrome.tabs.create({ url: `https://www.inaturalist.org/observations?taxon_id=${apiTaxonId}&without_term_id=17` });
+          } catch (e) {
+            statusDiv.textContent = 'Error fetching observation taxon';
+            statusDiv.style.color = 'red';
+          }
+        });
+        return;
+      }
+
+      // Observations list page: extract taxon_id from URL
+      if (tabUrl.includes('inaturalist.org/observations')) {
+        const params = new URL(tabUrl).searchParams;
+        const taxonId = params.get('taxon_id');
+        if (!taxonId) {
+          statusDiv.textContent = 'No taxon_id found in current URL';
+          statusDiv.style.color = 'red';
+          return;
+        }
+        chrome.tabs.create({ url: `https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=17` });
+        return;
+      }
+
+      statusDiv.textContent = 'Must be on an iNaturalist observations page';
+      statusDiv.style.color = 'red';
+    });
   });
 
   // Data-driven annotation button handlers

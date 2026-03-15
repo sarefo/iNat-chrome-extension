@@ -55,6 +55,14 @@
       flex: 1;
       margin-bottom: 0;
     }
+    .label-row {
+      align-items: center;
+    }
+    .row-label {
+      font-size: 12px;
+      color: #555;
+      white-space: nowrap;
+    }
     .icon-only {
       font-size: 18px;
       padding: 12px 8px;
@@ -190,7 +198,11 @@
     <button id="fillFieldsNoFlowersFruits" class="plant-button" title="Fill plant phenology: No Flowers/Fruits + Green Leaves">&#10060; None</button>
   </div>
   <button id="startCustomBulkMode" class="url-button" title="Open bulk mode: fetches all observations via API and shows 100 per page with instant preloading">Bulk Mode</button>
-  <button id="openUrl" class="url-button" title="Open page showing observations without annotations">Obs w/o annotations</button>
+  <div class="button-row label-row">
+    <span class="row-label">Annotate:</span>
+    <button id="openUrlTaxon" class="url-button" title="Open page showing observations without annotations for the taxon in the current tab">this taxon</button>
+    <button id="openUrl" class="url-button" title="Open page showing all observations without annotations">all <span id="openUrlUsername"></span></button>
+  </div>
 
   <div class="queue-section" id="queueSection" style="display:none">
     <div class="queue-header">
