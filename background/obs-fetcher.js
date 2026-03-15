@@ -40,7 +40,7 @@ async function patchStorage(patch) {
 
 // Fetch all observations for the given iNat page URL, updating storage progressively.
 // Opens custom-bulk.html immediately after the first page arrives.
-export async function startCustomBulkFetch(searchUrl, annotationType, jwt) {
+export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourceTabId) {
   // Initialize storage with loading state
   await chrome.storage.local.set({
     innat_custom_bulk: {
@@ -55,8 +55,10 @@ export async function startCustomBulkFetch(searchUrl, annotationType, jwt) {
     }
   });
 
-  // Open the custom page immediately
-  chrome.tabs.create({ url: chrome.runtime.getURL('custom-bulk.html') });
+  // Open the custom page immediately, then close the source tab
+  chrome.tabs.create({ url: chrome.runtime.getURL('custom-bulk.html') }, () => {
+    if (sourceTabId) chrome.tabs.remove(sourceTabId, () => { void chrome.runtime.lastError; });
+  });
 
   try {
     const params = buildApiParams(searchUrl);
