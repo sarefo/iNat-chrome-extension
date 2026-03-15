@@ -65,6 +65,13 @@
     #btn-process  { background: #2196F3; }
     #btn-cancel   { background: #f44336; }
 
+    .toolbar-btn kbd {
+      font-size: 11px;
+      opacity: 0.75;
+      font-family: monospace;
+      font-weight: normal;
+    }
+
     #obs-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -145,10 +152,10 @@
 
     <span id="page-info"></span>
     <button id="btn-prev"        class="toolbar-btn" disabled>← Prev</button>
-    <button id="btn-next"        class="toolbar-btn" disabled>Next →</button>
+    <button id="btn-next"        class="toolbar-btn" disabled>Next → <kbd>(n)</kbd></button>
     <button id="btn-select-page" class="toolbar-btn">Select Page</button>
-    <button id="btn-select-all"  class="toolbar-btn">Select All</button>
-    <button id="btn-process"     class="toolbar-btn" disabled>Add to Queue (0)</button>
+    <button id="btn-select-all"  class="toolbar-btn">Select All <kbd>(s)</kbd></button>
+    <button id="btn-process"     class="toolbar-btn" disabled>Add to Queue (0) <kbd>(x)</kbd></button>
     <button id="btn-cancel"      class="toolbar-btn">✕ Exit</button>
   </div>
 

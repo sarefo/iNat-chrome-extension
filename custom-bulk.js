@@ -325,6 +325,34 @@ document.getElementById('btn-cancel').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Keyboard shortcuts
+// ---------------------------------------------------------------------------
+
+document.addEventListener('keydown', (e) => {
+  // Ignore shortcuts if user is typing in an input field
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  switch (e.key.toLowerCase()) {
+    case 'n':
+      // Next page
+      if (currentPage < totalDisplayPages()) {
+        document.getElementById('btn-next').click();
+      }
+      break;
+    case 's':
+      // Select all
+      document.getElementById('btn-select-all').click();
+      break;
+    case 'x':
+      // Queue and close
+      if (selectedIds.size > 0) {
+        addToQueue().then(() => window.close());
+      }
+      break;
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
 
