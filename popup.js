@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     { id: 'fillFieldsAlive',           action: 'fillFieldsAlive'                },
     { id: 'fillFieldsDead',            action: 'fillFieldsDead'                 },
     { id: 'fillFieldsJuvenileDead',    action: 'fillFieldsJuvenileDead'         },
+    { id: 'fillFieldsMolt',            action: 'fillFieldsMolt'                 },
     { id: 'fillFieldsFlowers',         action: 'fillFieldsPlantFlowers'         },
     { id: 'fillFieldsFruits',          action: 'fillFieldsPlantFruits'          },
     { id: 'fillFieldsNoFlowersFruits', action: 'fillFieldsPlantNoFlowersFruits' },

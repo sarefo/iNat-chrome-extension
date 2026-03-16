@@ -1,0 +1,59 @@
+**Life Stage (term_id=1)**
+- Adult = 2
+- Teneral = 3 
+- Juvenile = 8
+- Subimago = 16
+- Nymph = 5
+- Pupa = 4
+- Larva = 6
+- Egg = 7
+
+**Sex (term_id=9)**
+- Female = 10
+- Male = 11
+- Cannot Be Determined = 20
+
+**Alive or Dead (term_id=17)**
+- Alive = 18
+- Dead = 19
+- Cannot Be Determined = 20
+
+**Evidence of Presence (term_id=22)**
+- Feather = 23
+- Organism = 24
+- Scat = 25
+- Track = 26
+- Bone = 27
+- Molt = 28
+- Gall = 29
+- Egg = 30
+- Hair = 31
+- Leafmine = 32
+- Construction = 35
+
+**IMPORTANT**
+- it's possible to use multiple terms for term_id etc.
+- HOWEVER, if an observation does not have any value for a term_id, it will be REJECTED
+- for example, https://www.inaturalist.org/observations?taxon_id=41944&user_id=portioid&term_id=17,22&without_term_value_id=19,23,25,26,27,28,31
+  will NOT give observations without "dead or alive (17) or "evidence of presence" (22) information!! 
+
+**Usage in API URLs:**
+- To filter by annotation: use `term_id=` for the category and `term_value_id=` for the specific value
+- Multiple values can be combined with commas
+- Example for Lepidoptera with Life Stage of Larva or Adult: `term_id=1&term_value_id=2,6`
+
+**Key Notes:**
+- These are annotation filters, not observation fields
+- Can combine multiple annotations using the term_id and term_value_id parameters
+- When excluding annotations:
+  - `without_term_id=` excludes the entire annotation category
+  - `without_term_value_id=` excludes specific values within a category
+- Parameters can be combined for complex queries
+
+This suggests that in our current implementation, we should use:
+- For adult: `term_id=1&term_value_id=2`
+- For male: `term_id=9&term_value_id=11`
+- For female: `term_id=9&term_value_id=10`
+- For immature: `term_id=1&term_value_id=3,8,5,4,6,7` (all non-adult stages)
+
+source: https://www.inaturalist.org/pages/search+urls

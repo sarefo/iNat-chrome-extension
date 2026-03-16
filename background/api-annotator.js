@@ -7,6 +7,7 @@ const ANNOTATION_CONFIGS = {
   'adult-dead':              [{a:1,v:2},{a:17,v:19},{a:22,v:24}],
   'juvenile':                [{a:1,v:8},{a:17,v:18},{a:22,v:24}],
   'juvenile-dead':           [{a:1,v:8},{a:17,v:19},{a:22,v:24}],
+  'molt':                    [{a:17,v:19},{a:22,v:28}],
   'age-unknown':             [{a:17,v:18},{a:22,v:24}],
   'plant-flowers':           [{a:12,v:13},{a:36,v:38}],
   'plant-fruits':            [{a:12,v:14},{a:36,v:38}],

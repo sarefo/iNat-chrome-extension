@@ -289,6 +289,7 @@ const ANNOTATION_LABELS = {
   'adult-dead':              '💀 Adult Dead',
   'juvenile':                '🐛 Juvenile',
   'juvenile-dead':           '💀 Juvenile Dead',
+  'molt':                    '💀 Molt',
   'age-unknown':             '❓ Age Unknown',
   'plant-flowers':           '🌼 Flowers',
   'plant-fruits':            '🍇 Fruits',
