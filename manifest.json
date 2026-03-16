@@ -12,7 +12,7 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "Fill iNaturalist Fields",
-    "default_icon": "iNat-favicon.png"
+    "default_icon": "iNat-favicon-orange.png"
   },
   "content_scripts": [{
     "matches": ["*://*.inaturalist.org/*"],
@@ -27,6 +27,7 @@
   }],
   "web_accessible_resources": [{
     "resources": [
+      "iNat-favicon-orange.png",
       "content/bulk-storage.js",
       "content/bulk-state.js",
       "content/bulk-selection.js",

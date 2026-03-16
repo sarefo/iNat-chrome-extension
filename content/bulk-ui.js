@@ -119,6 +119,19 @@ function autoScrollToRevealAllObservations(expectedCount = 0) {
 function createBulkModeUI() {
   if (bulkModeButtons || !isObservationsListPage()) return;
 
+  // Replace page favicon with orange bulk-mode icon
+  if (!document.getElementById('innat-bulk-favicon')) {
+    document.querySelectorAll('link[rel~="icon"]').forEach(el => {
+      el.dataset.innatRemoved = 'true';
+      el.remove();
+    });
+    const link = document.createElement('link');
+    link.id = 'innat-bulk-favicon';
+    link.rel = 'icon';
+    link.href = chrome.runtime.getURL('iNat-favicon-orange.png');
+    document.head.appendChild(link);
+  }
+
   const container = document.createElement('div');
   container.id = 'bulk-mode-container';
   container.style.cssText = `
@@ -396,6 +409,13 @@ function exitBulkMode() {
 
   // Remove selection styling from all observation divs
   document.querySelectorAll('.observation.observation-grid-cell').forEach(markDeselected);
+
+  // Restore original favicons
+  const ourFavicon = document.getElementById('innat-bulk-favicon');
+  if (ourFavicon) {
+    ourFavicon.remove();
+    // iNaturalist re-renders its own favicon via React, nothing to manually restore
+  }
 
   // Remove bulk mode UI
   if (bulkModeButtons) {
