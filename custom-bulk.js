@@ -540,6 +540,14 @@ document.addEventListener('keydown', (e) => {
         addToQueue().then(() => window.close());
       }
       break;
+    case 'u': {
+      const firstCard = document.querySelector('.obs-card');
+      if (firstCard) {
+        const rowHeight = firstCard.offsetHeight + 6;
+        window.scrollBy({ top: rowHeight, behavior: 'smooth' });
+      }
+      break;
+    }
   }
 });
 
