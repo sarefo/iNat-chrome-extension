@@ -585,17 +585,28 @@ async function init() {
       const taxonId = params.get('taxon_id');
       const taxonName = params.get('taxon_name');
       if (taxonId) {
+        const taxonUrl = `https://www.inaturalist.org/taxa/${taxonId}`;
+        const setTaxonLink = (label) => {
+          const el = document.getElementById('taxon-info');
+          el.innerHTML = '';
+          const a = document.createElement('a');
+          a.href = taxonUrl;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = label;
+          el.appendChild(a);
+        };
         if (taxonName) {
-          document.getElementById('taxon-info').textContent = `${taxonName} (${taxonId})`;
+          setTaxonLink(`${taxonName} (${taxonId})`);
         } else {
-          document.getElementById('taxon-info').textContent = `taxon: ${taxonId}`;
+          setTaxonLink(`taxon: ${taxonId}`);
           fetch(`https://api.inaturalist.org/v1/taxa/${taxonId}`)
             .then(r => r.json())
             .then(json => {
               const t = json.results && json.results[0];
               if (t) {
                 const name = t.preferred_common_name || t.name;
-                document.getElementById('taxon-info').textContent = `${name} (${taxonId})`;
+                setTaxonLink(`${name} (${taxonId})`);
               }
             })
             .catch(() => {});
