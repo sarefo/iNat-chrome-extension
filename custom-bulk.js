@@ -159,8 +159,8 @@ function updateToolbar() {
 
   const pageObs = pageObservations();
   const allOnPageSelected = pageObs.length > 0 && pageObs.every(o => selectedIds.has(o.id));
-  document.getElementById('btn-select-page').textContent =
-    allOnPageSelected ? 'Deselect Page' : 'Select Page';
+  document.getElementById('btn-select-page').innerHTML =
+    allOnPageSelected ? 'Deselect Page <kbd>(p)</kbd>' : 'Select Page <kbd>(p)</kbd>';
 }
 
 function updateStatusInfo() {
@@ -526,6 +526,9 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('btn-next').click();
       }
       break;
+    case 'p':
+      document.getElementById('btn-select-page').click();
+      break;
     case 'a':
       if (annotationType !== 'sex-split') {
         document.getElementById('btn-select-all').click();
@@ -581,8 +584,23 @@ async function init() {
       const params = new URL(data.searchUrl).searchParams;
       const taxonId = params.get('taxon_id');
       const taxonName = params.get('taxon_name');
-      const label = taxonName ? `${taxonName} (${taxonId})` : taxonId ? `taxon: ${taxonId}` : '';
-      if (label) document.getElementById('taxon-info').textContent = label;
+      if (taxonId) {
+        if (taxonName) {
+          document.getElementById('taxon-info').textContent = `${taxonName} (${taxonId})`;
+        } else {
+          document.getElementById('taxon-info').textContent = `taxon: ${taxonId}`;
+          fetch(`https://api.inaturalist.org/v1/taxa/${taxonId}`)
+            .then(r => r.json())
+            .then(json => {
+              const t = json.results && json.results[0];
+              if (t) {
+                const name = t.preferred_common_name || t.name;
+                document.getElementById('taxon-info').textContent = `${name} (${taxonId})`;
+              }
+            })
+            .catch(() => {});
+        }
+      }
     } catch { /* ignore malformed URLs */ }
   }
 
