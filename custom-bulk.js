@@ -531,9 +531,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // Refresh grid when first data arrives
   if (prevStatus === 'loading' && allObservations.length > 0 && prevLength === 0) {
     renderGrid();
+    preloadAdjacentPages();
   }
-  // When a fetch-more batch completes, re-render if user is still on the (now non-last) page
-  if (allObservations.length > prevLength && prevLength > 0 && (dataStatus === 'ready' || dataStatus === 'partial')) {
+  // Preload adjacent pages whenever new observations arrive (including during fetch-more)
+  if (allObservations.length > prevLength && prevLength > 0) {
     preloadAdjacentPages();
   }
 });
@@ -716,7 +717,7 @@ async function init() {
 
   updateSexModeUI(); // applies button visibility and renders
 
-  if (dataStatus !== 'loading') preloadAdjacentPages();
+  if (allObservations.length > 0) preloadAdjacentPages();
 }
 
 init();
