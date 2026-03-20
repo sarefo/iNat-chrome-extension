@@ -16,27 +16,21 @@ const ANNOTATION_CONFIGS = {
   'sex-male':                [{a:9,v:10}],
 };
 
-// Query the first open iNat tab and extract its JWT from page meta tag
+// Query the first open iNat tab and extract its JWT directly from the page meta tag
 async function getJwtFromInatTab() {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.query({ url: '*://*.inaturalist.org/*' }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        reject(new Error('No iNaturalist tab open. Please open iNaturalist first.'));
-        return;
-      }
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'getJwt' }, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error('Could not reach iNat tab: ' + chrome.runtime.lastError.message));
-          return;
-        }
-        if (!response || !response.jwt) {
-          reject(new Error('Not logged in to iNaturalist. Please log in first.'));
-          return;
-        }
-        resolve(response.jwt);
-      });
-    });
+  const tabs = await chrome.tabs.query({ url: '*://*.inaturalist.org/*' });
+  if (!tabs || tabs.length === 0) {
+    throw new Error('No iNaturalist tab open. Please open iNaturalist first.');
+  }
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tabs[0].id },
+    func: () => document.querySelector('meta[name="inaturalist-api-token"]')?.content ?? null
   });
+  const jwt = results[0]?.result;
+  if (!jwt) {
+    throw new Error('Not logged in to iNaturalist. Please log in first.');
+  }
+  return jwt;
 }
 
 // POST a single annotation via the iNat API
@@ -108,6 +102,12 @@ async function annotateObservationViaApi(obsId, mode, jwt) {
 }
 
 // Annotate a single observation with all annotations fired in parallel
+// Annotate a single observation, fetching JWT automatically from the open iNat tab
+export async function quickAnnotateSingleObs(obsId, mode) {
+  const jwt = await getJwtFromInatTab();
+  return annotateSingleObsViaApi(obsId, mode, jwt);
+}
+
 export async function annotateSingleObsViaApi(obsId, mode, jwt) {
   const config = ANNOTATION_CONFIGS[mode];
   if (!config) throw new Error(`Unknown annotation mode: ${mode}`);

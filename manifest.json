@@ -3,7 +3,7 @@
   "name": "iNaturalist Auto Filler",
   "version": "1.0",
   "description": "Auto-fills common iNaturalist observation fields",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "permissions": ["activeTab", "storage", "tabs", "scripting"],
   "host_permissions": ["https://api.inaturalist.org/*", "*://*.inaturalist.org/*"],
   "background": {
     "service_worker": "background/background-main.js",

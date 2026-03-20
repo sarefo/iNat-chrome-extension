@@ -216,19 +216,6 @@ function handleCardClick(e, id, card) {
     return;
   }
 
-  if (e.ctrlKey || e.metaKey) {
-    // Ctrl+click: deselect and open in new tab
-    if (selectedIds.has(id)) {
-      selectedIds.delete(id);
-      card.classList.remove('selected');
-      saveSelections();
-      updateToolbar();
-      updateStatusInfo();
-    }
-    window.open(`https://www.inaturalist.org/observations/${id}`, '_blank');
-    return;
-  }
-
   if (selectedIds.has(id)) {
     selectedIds.delete(id);
     card.classList.remove('selected');
@@ -243,11 +230,6 @@ function handleCardClick(e, id, card) {
 }
 
 function handleSexCardClick(e, id, card) {
-  if (e.ctrlKey || e.metaKey) {
-    window.open(`https://www.inaturalist.org/observations/${id}`, '_blank');
-    return;
-  }
-
   // Diagonal from top-right to bottom-left: female = upper-left (x+y < width)
   const rect = card.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -279,6 +261,123 @@ function handleSexCardClick(e, id, card) {
   updateToolbar();
   updateStatusInfo();
 }
+
+// ---------------------------------------------------------------------------
+// Ctrl-hover quick annotation overlay
+// ---------------------------------------------------------------------------
+
+let ctrlHeld = false;
+let ctrlOverlayCardId = null;
+const ctrlOverlayEl = document.getElementById('ctrl-overlay');
+
+function showCtrlOverlay(card) {
+  const rect = card.getBoundingClientRect();
+  ctrlOverlayEl.style.left = rect.left + 'px';
+  ctrlOverlayEl.style.top = rect.top + 'px';
+  ctrlOverlayEl.style.width = rect.width + 'px';
+  ctrlOverlayEl.style.height = rect.height + 'px';
+  ctrlOverlayCardId = card.dataset.id;
+  ctrlOverlayEl.classList.add('visible');
+}
+
+function hideCtrlOverlay() {
+  ctrlOverlayEl.classList.remove('visible');
+  ctrlOverlayCardId = null;
+}
+
+function ctrlDeselectCard(id) {
+  let changed = false;
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+    if (card) card.classList.remove('selected');
+    saveSelections();
+    changed = true;
+  }
+  if (femaleIds.has(id) || maleIds.has(id)) {
+    femaleIds.delete(id);
+    maleIds.delete(id);
+    const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+    if (card) {
+      card.querySelector('.sex-female-overlay')?.classList.remove('active');
+      card.querySelector('.sex-male-overlay')?.classList.remove('active');
+    }
+    saveSexSelections();
+    changed = true;
+  }
+  if (changed) {
+    updateToolbar();
+    updateStatusInfo();
+  }
+}
+
+ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
+  zone.addEventListener('click', e => {
+    e.stopPropagation();
+    const type = zone.dataset.type;
+    const id = ctrlOverlayCardId;
+    hideCtrlOverlay();
+    if (!id) return;
+    ctrlDeselectCard(id);
+    const label = ANNOTATION_LABELS[type] || type;
+    const toast = document.getElementById('queue-toast');
+    toast.textContent = `⏳ Annotating: ${label}…`;
+    toast.classList.add('active');
+    chrome.runtime.sendMessage(
+      { action: 'quickAnnotateObs', obsId: id, mode: type },
+      response => {
+        if (chrome.runtime.lastError) {
+          toast.textContent = `✗ Error: ${chrome.runtime.lastError.message}`;
+        } else if (response && response.success) {
+          toast.textContent = `✓ Annotated: ${label}`;
+        } else {
+          toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
+        }
+        setTimeout(() => toast.classList.remove('active'), 3000);
+      }
+    );
+  });
+});
+
+ctrlOverlayEl.querySelector('.ctrl-zone-center').addEventListener('click', e => {
+  e.stopPropagation();
+  const id = ctrlOverlayCardId;
+  hideCtrlOverlay();
+  if (!id) return;
+  ctrlDeselectCard(id);
+  window.open(`https://www.inaturalist.org/observations/${id}`, '_blank');
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Control' && !ctrlHeld) {
+    ctrlHeld = true;
+  }
+});
+
+document.addEventListener('keyup', e => {
+  if (e.key === 'Control') {
+    ctrlHeld = false;
+    hideCtrlOverlay();
+  }
+});
+
+window.addEventListener('blur', () => {
+  ctrlHeld = false;
+  hideCtrlOverlay();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!ctrlHeld) return;
+  if (ctrlOverlayEl.contains(e.target)) return;
+  const card = e.target.closest('.obs-card');
+  if (card) {
+    if (card.dataset.id !== ctrlOverlayCardId) {
+      showCtrlOverlay(card);
+    }
+  } else {
+    hideCtrlOverlay();
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Queue

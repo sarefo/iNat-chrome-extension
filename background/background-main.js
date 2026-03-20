@@ -1,8 +1,15 @@
-import { processBulkObservationsViaApi, annotateSingleObsViaApi } from './api-annotator.js';
+import { processBulkObservationsViaApi, annotateSingleObsViaApi, quickAnnotateSingleObs } from './api-annotator.js';
 import { processQueuedObservations } from './queue-manager.js';
 import { startCustomBulkFetch, fetchMoreObservations } from './obs-fetcher.js';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'quickAnnotateObs') {
+    quickAnnotateSingleObs(request.obsId, request.mode)
+      .then(result => sendResponse({ success: result.success, result }))
+      .catch(e => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
   if (request.action === 'annotateSingleObs') {
     annotateSingleObsViaApi(request.obsId, request.mode, request.jwt)
       .then(result => sendResponse({ success: result.success, result }))

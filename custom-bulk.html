@@ -183,6 +183,63 @@
       z-index: 200;
     }
     #queue-toast.active { display: block; }
+
+    /* Ctrl-hover quick annotation overlay */
+    #ctrl-overlay {
+      position: fixed;
+      z-index: 500;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      border-radius: 8px;
+      overflow: hidden;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #ctrl-overlay.visible {
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .ctrl-zone {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+      line-height: 1.3;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+      user-select: none;
+      transition: filter 0.1s;
+    }
+    .ctrl-zone:hover { filter: brightness(1.25); }
+    .ctrl-zone-tl { background: rgba(76, 175, 80, 0.82); }
+    .ctrl-zone-tr { background: rgba(33, 150, 243, 0.82); }
+    .ctrl-zone-bl { background: rgba(255, 152, 0, 0.82); }
+    .ctrl-zone-br { background: rgba(244, 67, 54, 0.82); }
+    .ctrl-zone-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(30, 30, 30, 0.75);
+      border-radius: 50%;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.5);
+      z-index: 1;
+    }
+    .ctrl-zone-center:hover {
+      background: rgba(60, 60, 60, 0.88);
+      filter: none;
+    }
   </style>
 </head>
 <body>
@@ -216,6 +273,14 @@
   <div id="loading-msg">Loading observations from iNaturalist API...</div>
 
   <div id="queue-toast">Saved to queue!</div>
+
+  <div id="ctrl-overlay">
+    <div class="ctrl-zone ctrl-zone-tl" data-type="juvenile" title="Live Juvenile">Juv<br>Alive</div>
+    <div class="ctrl-zone ctrl-zone-tr" data-type="adult-alive" title="Live Adult">Adult<br>Alive</div>
+    <div class="ctrl-zone ctrl-zone-bl" data-type="juvenile-dead" title="Dead Juvenile">Juv<br>Dead</div>
+    <div class="ctrl-zone ctrl-zone-br" data-type="adult-dead" title="Dead Adult">Adult<br>Dead</div>
+    <div class="ctrl-zone ctrl-zone-center" title="Open in new tab">↗</div>
+  </div>
 
   <script src="custom-bulk.js"></script>
 </body>
