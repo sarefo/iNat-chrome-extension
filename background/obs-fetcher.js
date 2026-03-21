@@ -19,7 +19,7 @@ function buildApiParams(inatPageUrl) {
 
 function extractObs(results) {
   return results
-    .filter(obs => obs.photos?.length > 0)
+    .filter(obs => obs.photos?.length > 0 && !obs.photos[0].url.includes('copyright-infringement'))
     .map(obs => ({
       id: String(obs.id),
       photoUrl: obs.photos[0].url.replace(/\/square(\.\w+)$/, '/medium$1')
