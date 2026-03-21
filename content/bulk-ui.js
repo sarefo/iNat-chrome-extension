@@ -262,6 +262,22 @@ function createBulkModeUI() {
     font-size: 12px;
   `;
 
+  const helpButton = document.createElement('button');
+  helpButton.textContent = '? Help';
+  helpButton.id = 'bulk-help-button';
+  helpButton.title = 'How to use bulk mode';
+  helpButton.style.cssText = `
+    background: #607D8B;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    width: 100%;
+  `;
+
   const prevPageButton = document.createElement('button');
   prevPageButton.textContent = '← Prev Page';
   prevPageButton.id = 'bulk-prev-page-button';
@@ -287,6 +303,7 @@ function createBulkModeUI() {
   container.appendChild(annotationDisplay);
   container.appendChild(accumulatedCounter);
   container.appendChild(buttonRow);
+  container.appendChild(helpButton);
 
   document.body.appendChild(container);
   bulkModeButtons = container;
@@ -395,8 +412,125 @@ function createBulkModeUI() {
     exitBulkMode();
   });
 
+  helpButton.addEventListener('click', () => {
+    showBulkModeHelp();
+  });
+
   prevPageButton.addEventListener('click', () => {
     goToPrevPage();
+  });
+}
+
+// Show help modal explaining bulk mode controls
+function showBulkModeHelp() {
+  const existing = document.getElementById('innat-bulk-help-modal');
+  if (existing) { existing.remove(); return; }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'innat-bulk-help-modal';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, sans-serif;
+  `;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    padding: 24px 28px;
+    max-width: 480px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+  `;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = `
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+  `;
+  closeBtn.addEventListener('click', () => overlay.remove());
+
+  modal.innerHTML = `
+    <h2 style="margin:0 0 16px;font-size:16px;color:#1565C0;">Bulk Mode — How to Use</h2>
+
+    <p style="margin:0 0 10px;font-size:13px;color:#333;">
+      Select multiple observations and apply an annotation to all of them at once.
+    </p>
+
+    <h3 style="font-size:13px;margin:14px 0 6px;color:#333;border-bottom:1px solid #eee;padding-bottom:4px;">Click Actions</h3>
+    <table style="font-size:12px;width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">Click</td>
+        <td style="padding:4px 0;color:#555;">Select or deselect an observation for bulk processing.</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">Ctrl+click</td>
+        <td style="padding:4px 0;color:#555;">Deselect and open the observation in a new tab for manual review or annotation.</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">Shift+click</td>
+        <td style="padding:4px 0;color:#555;">
+          Show a quick-annotate overlay for this individual observation — without deselecting it or opening it.
+          <br><br>
+          Available options:
+          <ul style="margin:4px 0 0 16px;padding:0;">
+            <li><b>♂ Male / ♀ Female</b> — sets the Sex annotation</li>
+            <li><b>🏗 Construction</b> — sets Evidence of Presence: Construction</li>
+            <li><b>🥚 Egg</b> — sets Evidence of Presence: Egg</li>
+            <li><b>❤️ Mating</b> — adds observation field "Behavior: mating = yes"</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+
+    <h3 style="font-size:13px;margin:14px 0 6px;color:#333;border-bottom:1px solid #eee;padding-bottom:4px;">Toolbar Buttons</h3>
+    <table style="font-size:12px;width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">Select All</td>
+        <td style="padding:4px 0;color:#555;">Select all observations visible on the current page.</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">← Prev Page</td>
+        <td style="padding:4px 0;color:#555;">Navigate to the previous page (preloaded in the background for instant switching).</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">Save Queue</td>
+        <td style="padding:4px 0;color:#555;">Save the current selection as a named queue to process later from the popup.</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">Process</td>
+        <td style="padding:4px 0;color:#555;">Apply the main annotation type to all selected observations.</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px 4px 0;font-weight:bold;white-space:nowrap;vertical-align:top;">✕</td>
+        <td style="padding:4px 0;color:#555;">Exit bulk mode and clear the current selection.</td>
+      </tr>
+    </table>
+  `;
+
+  modal.appendChild(closeBtn);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
   });
 }
 

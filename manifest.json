@@ -19,6 +19,7 @@
     "js": [
       "content/bulk-storage.js",
       "content/bulk-state.js",
+      "content/bulk-shift-overlay.js",
       "content/bulk-selection.js",
       "content/bulk-processing.js",
       "content/bulk-ui.js",
@@ -30,6 +31,7 @@
       "iNat-favicon-orange.png",
       "content/bulk-storage.js",
       "content/bulk-state.js",
+      "content/bulk-shift-overlay.js",
       "content/bulk-selection.js",
       "content/bulk-processing.js",
       "content/bulk-ui.js",

@@ -14,6 +14,8 @@ const ANNOTATION_CONFIGS = {
   'plant-no-flowers-fruits': [{a:12,v:21},{a:36,v:38}],
   'sex-female':              [{a:9,v:11}],
   'sex-male':                [{a:9,v:10}],
+  'eop-construction':        [{a:22,v:35}],
+  'eop-egg':                 [{a:22,v:30}],
 };
 
 // Query the first open iNat tab and extract its JWT directly from the page meta tag
@@ -122,6 +124,42 @@ export async function annotateSingleObsViaApi(obsId, mode, jwt) {
 
   const allSuccess = results.every(r => r.success);
   return { observationId: obsId, success: allSuccess, results };
+}
+
+// POST an observation field value (e.g. "Behavior: mating = yes", field ID 6637)
+// Returns true on success, true on 422 (already set), throws on auth error
+export async function postObservationFieldViaApi(obsId, fieldId, value, jwt) {
+  if (!jwt) {
+    jwt = await getJwtFromInatTab();
+  }
+  const response = await fetch(`${API_BASE}/observation_field_values`, {
+    method: 'POST',
+    headers: {
+      'Authorization': jwt,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      observation_field_value: {
+        observation_id: Number(obsId),
+        observation_field_id: fieldId,
+        value: String(value)
+      }
+    })
+  });
+
+  if (response.status === 422) return true; // already set — treat as success
+
+  if (response.status === 401) {
+    const err = new Error('auth:JWT expired or invalid');
+    err.isAuthError = true;
+    throw err;
+  }
+
+  if (!response.ok) {
+    throw new Error(`API error ${response.status} posting observation field for obs ${obsId}`);
+  }
+
+  return true;
 }
 
 // Process multiple observations via API (exported for background-main.js)

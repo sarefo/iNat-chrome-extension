@@ -241,6 +241,100 @@
       filter: none;
     }
 
+    /* Shift-hover quick annotation overlay */
+    #shift-overlay {
+      position: fixed;
+      z-index: 500;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      border-radius: 8px;
+      overflow: hidden;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #shift-overlay.visible {
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .shift-zone {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+      line-height: 1.3;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+      user-select: none;
+      transition: filter 0.1s;
+    }
+    .shift-zone:hover { filter: brightness(1.25); }
+    .shift-zone-tl { background: rgba(194, 24, 91, 0.82); }
+    .shift-zone-tr { background: rgba(21, 101, 192, 0.82); }
+    .shift-zone-bl { background: rgba(109, 76, 65, 0.82); }
+    .shift-zone-br { background: rgba(245, 127, 23, 0.82); }
+    .shift-zone-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(106, 27, 154, 0.82);
+      border-radius: 50%;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.5);
+      z-index: 1;
+    }
+    .shift-zone-center:hover {
+      background: rgba(123, 31, 162, 0.95);
+      filter: none;
+    }
+
+    /* Help modal */
+    #help-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #help-overlay.visible { display: flex; }
+    #help-dialog {
+      background: white;
+      border-radius: 10px;
+      padding: 24px 28px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      position: relative;
+    }
+    #help-dialog h2 { font-size: 16px; color: #1565C0; margin-bottom: 14px; }
+    #help-dialog h3 { font-size: 13px; color: #333; margin: 14px 0 6px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    #help-dialog table { font-size: 12px; width: 100%; border-collapse: collapse; }
+    #help-dialog td { padding: 4px 0; vertical-align: top; }
+    #help-dialog td:first-child { font-weight: bold; white-space: nowrap; padding-right: 10px; }
+    #help-dialog td:last-child { color: #555; }
+    #help-dialog ul { margin: 4px 0 0 16px; padding: 0; }
+    #help-dialog li { margin-bottom: 2px; }
+    #help-close {
+      position: absolute;
+      top: 12px; right: 14px;
+      background: none; border: none;
+      font-size: 18px; cursor: pointer; color: #666;
+    }
+
     /* Warning modal */
     #warn-overlay {
       display: none;
@@ -306,6 +400,7 @@
     <button id="btn-select-all"  class="toolbar-btn">Select All <kbd>(a)</kbd></button>
     <button id="btn-process"     class="toolbar-btn" disabled>Add to Queue (0) <kbd>(x)</kbd></button>
     <button id="btn-cancel"      class="toolbar-btn">✕ Exit</button>
+    <button id="btn-help"        class="toolbar-btn" style="background:#607D8B;">? Help</button>
   </div>
 
   <div id="obs-grid"></div>
@@ -321,6 +416,52 @@
         <button id="warn-confirm" class="toolbar-btn">Send anyway <kbd>(Enter)</kbd></button>
         <button id="warn-cancel"  class="toolbar-btn">Go back <kbd>(Esc)</kbd></button>
       </div>
+    </div>
+  </div>
+
+  <div id="shift-overlay">
+    <div class="shift-zone shift-zone-tl" data-type="sex-female" title="Female">♀<br>Female</div>
+    <div class="shift-zone shift-zone-tr" data-type="sex-male"   title="Male">♂<br>Male</div>
+    <div class="shift-zone shift-zone-bl" data-type="eop-construction" title="Construction">🏗<br>Constr.</div>
+    <div class="shift-zone shift-zone-br" data-type="eop-egg"   title="Egg (Evidence of Presence)">🥚<br>Egg</div>
+    <div class="shift-zone shift-zone-center" data-type="mating" title="Mating (observation field)">❤️</div>
+  </div>
+
+  <div id="help-overlay">
+    <div id="help-dialog">
+      <button id="help-close">✕</button>
+      <h2>Bulk Mode — How to Use</h2>
+      <p style="font-size:13px;color:#333;margin-bottom:10px;">Select multiple observations and annotate them all at once.</p>
+
+      <h3>Click Actions</h3>
+      <table>
+        <tr><td>Click</td><td>Select or deselect an observation.</td></tr>
+        <tr><td>Ctrl+hover</td><td>Shows the age/alive overlay over the card. Click a zone to deselect and immediately annotate with that age/state. Center circle opens the observation in a new tab.</td></tr>
+        <tr><td>Shift+hover</td><td>Shows the sex/evidence/mating overlay. Click a zone to annotate — <em>without</em> deselecting the observation.
+          <ul>
+            <li><b>♀ Female / ♂ Male</b> — sets the Sex annotation</li>
+            <li><b>🏗 Construction</b> — sets Evidence of Presence: Construction</li>
+            <li><b>🥚 Egg</b> — sets Evidence of Presence: Egg</li>
+            <li><b>❤️ Mating</b> — adds observation field "Behavior: mating = yes"</li>
+          </ul>
+        </td></tr>
+      </table>
+
+      <h3>Toolbar Buttons</h3>
+      <table>
+        <tr><td>Select Page (p)</td><td>Select or deselect all observations on the current page.</td></tr>
+        <tr><td>Select All (a)</td><td>Select all loaded observations across all pages.</td></tr>
+        <tr><td>Add to Queue (x)</td><td>Save the selection as a named queue for processing from the popup.</td></tr>
+        <tr><td>✕ Exit</td><td>Exit bulk mode and clear the session.</td></tr>
+      </table>
+
+      <h3>Keyboard Shortcuts</h3>
+      <table>
+        <tr><td>n</td><td>Next page</td></tr>
+        <tr><td>p</td><td>Select/deselect current page</td></tr>
+        <tr><td>a</td><td>Select/deselect all</td></tr>
+        <tr><td>x</td><td>Add to queue (and close)</td></tr>
+      </table>
     </div>
   </div>
 

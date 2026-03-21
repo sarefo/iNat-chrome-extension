@@ -1,4 +1,4 @@
-import { processBulkObservationsViaApi, annotateSingleObsViaApi, quickAnnotateSingleObs } from './api-annotator.js';
+import { processBulkObservationsViaApi, annotateSingleObsViaApi, quickAnnotateSingleObs, postObservationFieldViaApi } from './api-annotator.js';
 import { processQueuedObservations } from './queue-manager.js';
 import { startCustomBulkFetch, fetchMoreObservations } from './obs-fetcher.js';
 
@@ -13,6 +13,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'annotateSingleObs') {
     annotateSingleObsViaApi(request.obsId, request.mode, request.jwt)
       .then(result => sendResponse({ success: result.success, result }))
+      .catch(e => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
+  if (request.action === 'postObservationField') {
+    postObservationFieldViaApi(request.obsId, request.fieldId, request.value, request.jwt || null)
+      .then(() => sendResponse({ success: true }))
       .catch(e => sendResponse({ success: false, error: e.message }));
     return true;
   }

@@ -366,6 +366,8 @@ document.addEventListener('keyup', e => {
 window.addEventListener('blur', () => {
   ctrlHeld = false;
   hideCtrlOverlay();
+  shiftHeld = false;
+  hideShiftOverlay();
 });
 
 document.addEventListener('mousemove', e => {
@@ -378,6 +380,128 @@ document.addEventListener('mousemove', e => {
     }
   } else {
     hideCtrlOverlay();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Shift-hover quick annotation overlay (sex, evidence of presence, mating)
+// Unlike ctrl-mode, shift-mode does NOT deselect the observation.
+// ---------------------------------------------------------------------------
+
+const SHIFT_ANNOTATION_LABELS = {
+  'sex-female':        '♀ Female',
+  'sex-male':          '♂ Male',
+  'eop-construction':  '🏗 Construction',
+  'eop-egg':           '🥚 Egg',
+  'mating':            '❤️ Mating',
+};
+
+let shiftHeld = false;
+let shiftOverlayCardId = null;
+const shiftOverlayEl = document.getElementById('shift-overlay');
+
+function showShiftOverlay(card) {
+  const rect = card.getBoundingClientRect();
+  shiftOverlayEl.style.left = rect.left + 'px';
+  shiftOverlayEl.style.top = rect.top + 'px';
+  shiftOverlayEl.style.width = rect.width + 'px';
+  shiftOverlayEl.style.height = rect.height + 'px';
+  shiftOverlayCardId = card.dataset.id;
+  shiftOverlayEl.classList.add('visible');
+}
+
+function hideShiftOverlay() {
+  shiftOverlayEl.classList.remove('visible');
+  shiftOverlayCardId = null;
+}
+
+shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
+  zone.addEventListener('click', e => {
+    e.stopPropagation();
+    const type = zone.dataset.type;
+    const id = shiftOverlayCardId;
+    hideShiftOverlay();
+    if (!id) return;
+    // Shift-mode: do NOT deselect the observation
+    const label = SHIFT_ANNOTATION_LABELS[type] || type;
+    const toast = document.getElementById('queue-toast');
+    toast.textContent = `⏳ Annotating: ${label}…`;
+    toast.classList.add('active');
+
+    if (type === 'mating') {
+      chrome.runtime.sendMessage(
+        { action: 'postObservationField', obsId: id, fieldId: 6637, value: 'yes' },
+        response => {
+          if (chrome.runtime.lastError) {
+            toast.textContent = `✗ Error: ${chrome.runtime.lastError.message}`;
+          } else if (response && response.success) {
+            toast.textContent = `✓ ${label}: obs ${id}`;
+          } else {
+            toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
+          }
+          setTimeout(() => toast.classList.remove('active'), 3000);
+        }
+      );
+    } else {
+      chrome.runtime.sendMessage(
+        { action: 'quickAnnotateObs', obsId: id, mode: type },
+        response => {
+          if (chrome.runtime.lastError) {
+            toast.textContent = `✗ Error: ${chrome.runtime.lastError.message}`;
+          } else if (response && response.success) {
+            toast.textContent = `✓ ${label}: obs ${id}`;
+          } else {
+            toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
+          }
+          setTimeout(() => toast.classList.remove('active'), 3000);
+        }
+      );
+    }
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Shift' && !shiftHeld) {
+    shiftHeld = true;
+  }
+});
+
+document.addEventListener('keyup', e => {
+  if (e.key === 'Shift') {
+    shiftHeld = false;
+    hideShiftOverlay();
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  if (!shiftHeld) {
+    if (shiftOverlayCardId) hideShiftOverlay();
+    return;
+  }
+  if (shiftOverlayEl.contains(e.target)) return;
+  const card = e.target.closest('.obs-card');
+  if (card) {
+    if (card.dataset.id !== shiftOverlayCardId) showShiftOverlay(card);
+  } else {
+    hideShiftOverlay();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Help modal
+// ---------------------------------------------------------------------------
+
+document.getElementById('btn-help').addEventListener('click', () => {
+  document.getElementById('help-overlay').classList.add('visible');
+});
+
+document.getElementById('help-close').addEventListener('click', () => {
+  document.getElementById('help-overlay').classList.remove('visible');
+});
+
+document.getElementById('help-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('help-overlay')) {
+    document.getElementById('help-overlay').classList.remove('visible');
   }
 });
 

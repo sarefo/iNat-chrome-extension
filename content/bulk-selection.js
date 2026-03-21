@@ -159,6 +159,26 @@ function handleObservationContextMenu(event, observationElement) {
   window.open(`https://www.inaturalist.org/observations/${observationId}`, '_blank');
 }
 
+// Mousedown handler: intercept shift+click before Chrome can open a new window
+function handleObservationMousedown(event, observationElement) {
+  if (!bulkSelectionMode) return;
+  if (!event.shiftKey) return;
+
+  // Prevent Chrome from opening the link in a new window on shift+click
+  event.preventDefault();
+  event.stopPropagation();
+
+  const href = observationElement.getAttribute('href');
+  if (!href || !href.includes('/observations/')) return;
+
+  const observationDiv = observationElement.closest('.observation.observation-grid-cell');
+  if (!observationDiv) return;
+
+  const observationId = href.split('/observations/')[1].split('?')[0].split('#')[0];
+  console.log('[iNat] shift+mousedown on obs', observationId);
+  showShiftOverlay(observationId, observationDiv);
+}
+
 // Function to setup observation click handlers
 function setupObservationClickHandlers() {
   if (!isObservationsListPage()) return;
@@ -172,10 +192,14 @@ function setupObservationClickHandlers() {
     element._clickHandler = (event) => {
       handleObservationClick(event, element);
     };
+    element._mousedownHandler = (event) => {
+      handleObservationMousedown(event, element);
+    };
     element._contextMenuHandler = (event) => {
       handleObservationContextMenu(event, element);
     };
 
+    element.addEventListener('mousedown', element._mousedownHandler);
     element.addEventListener('click', element._clickHandler);
     element.addEventListener('contextmenu', element._contextMenuHandler);
     element._hasClickHandler = true;
