@@ -11,6 +11,7 @@ let fetchedApiPages = 0;
 let annotationType = 'adult-alive';
 let dataStatus = 'loading';
 let searchUrl = null;
+let selectAllActive = false;
 
 // ---------------------------------------------------------------------------
 // Storage helpers
@@ -536,6 +537,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // Preload adjacent pages whenever new observations arrive (including during fetch-more)
   if (allObservations.length > prevLength && prevLength > 0) {
     preloadAdjacentPages();
+    // Auto-select new batch if "select all" was active when more obs were requested
+    if (selectAllActive) {
+      allObservations.slice(prevLength).forEach(o => selectedIds.add(o.id));
+      if (dataStatus !== 'partial') selectAllActive = false;
+      saveSelections();
+      updateToolbar();
+      updateStatusInfo();
+    }
   }
 });
 
@@ -595,8 +604,10 @@ document.getElementById('btn-select-all').addEventListener('click', () => {
     allObservations.every(o => selectedIds.has(o.id));
   if (allSelected) {
     selectedIds.clear();
+    selectAllActive = false;
   } else {
     allObservations.forEach(o => selectedIds.add(o.id));
+    selectAllActive = dataStatus === 'partial';
   }
   saveSelections();
   renderGrid();
