@@ -530,8 +530,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
   updateStatusInfo();
   updateToolbar();
 
-  // Refresh grid when first data arrives
-  if (prevStatus === 'loading' && allObservations.length > 0 && prevLength === 0) {
+  // Refresh grid when first data arrives, or when fetch completes with zero results
+  if (prevStatus === 'loading' && prevLength === 0 && (allObservations.length > 0 || dataStatus !== 'loading')) {
     renderGrid();
     preloadAdjacentPages();
   }
@@ -542,7 +542,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (selectAllActive) {
       allObservations.slice(prevLength).forEach(o => selectedIds.add(o.id));
       if (dataStatus === 'ready') selectAllActive = false;
-      saveSelections();
+      // Only save when background fetch is done (status !== 'loading') to avoid
+      // racing with concurrent patchStorage writes and reverting status to 'loading'
+      if (dataStatus !== 'loading') saveSelections();
       updateToolbar();
       updateStatusInfo();
     }
