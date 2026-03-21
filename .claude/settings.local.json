@@ -16,7 +16,14 @@
       "WebFetch(domain:pyinaturalist.readthedocs.io)",
       "WebFetch(domain:inaturalist.ala.org.au)",
       "Bash(grep:*)",
-      "mcp__playwright__browser_tabs"
+      "mcp__playwright__browser_tabs",
+      "Bash(curl -s \"https://api.inaturalist.org/v1/observation_fields?q=mating&per_page=20\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"https://www.inaturalist.org/observation_fields?q=mating\" -H \"Accept: application/json\")",
+      "Bash(curl -s \"https://api.inaturalist.org/v1/docs/#!/Observation_Field_Values/post_observation_field_values\")",
+      "Bash(curl -s \"https://www.inaturalist.org/pages/api+reference\")",
+      "Bash(python3 -c \"import sys; data=sys.stdin.read\\(\\); idx=data.find\\(''''observation_field_value''''\\); print\\(data[max\\(0,idx-200\\):idx+800]\\)\")",
+      "Bash(curl -s https://api.inaturalist.org/v1/swagger.json)"
     ],
     "deny": []
   }
