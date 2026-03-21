@@ -540,7 +540,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     // Auto-select new batch if "select all" was active when more obs were requested
     if (selectAllActive) {
       allObservations.slice(prevLength).forEach(o => selectedIds.add(o.id));
-      if (dataStatus !== 'partial') selectAllActive = false;
+      if (dataStatus === 'ready') selectAllActive = false;
       saveSelections();
       updateToolbar();
       updateStatusInfo();
@@ -607,7 +607,7 @@ document.getElementById('btn-select-all').addEventListener('click', () => {
     selectAllActive = false;
   } else {
     allObservations.forEach(o => selectedIds.add(o.id));
-    selectAllActive = dataStatus === 'partial';
+    selectAllActive = dataStatus !== 'ready';
   }
   saveSelections();
   renderGrid();
