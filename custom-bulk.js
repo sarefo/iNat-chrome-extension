@@ -12,6 +12,7 @@ let annotationType = 'adult-alive';
 let dataStatus = 'loading';
 let searchUrl = null;
 let selectAllActive = false;
+let visitedPages = new Set([1]);
 
 // ---------------------------------------------------------------------------
 // Storage helpers
@@ -568,6 +569,7 @@ document.getElementById('annotation-select').addEventListener('change', e => {
 document.getElementById('btn-prev').addEventListener('click', () => {
   if (currentPage <= 1) return;
   currentPage--;
+  visitedPages.add(currentPage);
   window.scrollTo(0, 0);
   render();
   preloadAdjacentPages();
@@ -576,6 +578,7 @@ document.getElementById('btn-prev').addEventListener('click', () => {
 document.getElementById('btn-next').addEventListener('click', () => {
   if (currentPage >= totalDisplayPages()) return;
   currentPage++;
+  visitedPages.add(currentPage);
   window.scrollTo(0, 0);
   render();
   preloadAdjacentPages();
@@ -651,7 +654,7 @@ document.addEventListener('keydown', (e) => {
           addToQueue().then(() => window.close());
         }
       } else if (selectedIds.size > 0) {
-        addToQueue().then(() => window.close());
+        tryAddToQueue();
       }
       break;
     case 'u': {
@@ -664,6 +667,57 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// Warning modal for unvisited pages
+// ---------------------------------------------------------------------------
+
+function allPagesVisited() {
+  if (dataStatus !== 'ready') return false;
+  const total = totalDisplayPages();
+  for (let i = 1; i <= total; i++) {
+    if (!visitedPages.has(i)) return false;
+  }
+  return true;
+}
+
+function selectAllIsActive() {
+  return allObservations.length > 0 &&
+    allObservations.every(o => selectedIds.has(o.id));
+}
+
+function tryAddToQueue() {
+  if (selectAllIsActive() && !allPagesVisited()) {
+    const total = totalDisplayPages();
+    const seen = visitedPages.size;
+    document.getElementById('warn-msg').textContent =
+      `You selected all observations but only viewed ${seen} of ${total} pages. Send to queue anyway?`;
+    document.getElementById('warn-overlay').classList.add('visible');
+  } else {
+    addToQueue().then(() => window.close());
+  }
+}
+
+document.getElementById('warn-confirm').addEventListener('click', () => {
+  document.getElementById('warn-overlay').classList.remove('visible');
+  addToQueue().then(() => window.close());
+});
+
+document.getElementById('warn-cancel').addEventListener('click', () => {
+  document.getElementById('warn-overlay').classList.remove('visible');
+});
+
+document.getElementById('warn-overlay').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('warn-confirm').click();
+  if (e.key === 'Escape') document.getElementById('warn-cancel').click();
+});
+
+// Also handle Enter/Esc globally when modal is open
+document.addEventListener('keydown', (e) => {
+  if (!document.getElementById('warn-overlay').classList.contains('visible')) return;
+  if (e.key === 'Enter') { e.stopImmediatePropagation(); document.getElementById('warn-confirm').click(); }
+  if (e.key === 'Escape') { e.stopImmediatePropagation(); document.getElementById('warn-cancel').click(); }
+}, true);
 
 // ---------------------------------------------------------------------------
 // Init

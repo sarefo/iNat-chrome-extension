@@ -240,6 +240,45 @@
       background: rgba(60, 60, 60, 0.88);
       filter: none;
     }
+
+    /* Warning modal */
+    #warn-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #warn-overlay.visible { display: flex; }
+    #warn-dialog {
+      background: white;
+      border-radius: 10px;
+      padding: 24px 28px;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    #warn-dialog h3 {
+      font-size: 16px;
+      color: #e65100;
+      margin-bottom: 10px;
+    }
+    #warn-dialog p {
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    #warn-dialog .warn-btns {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    #warn-confirm { background: #f44336; }
+    #warn-cancel  { background: #9E9E9E; }
   </style>
 </head>
 <body>
@@ -273,6 +312,17 @@
   <div id="loading-msg">Loading observations from iNaturalist API...</div>
 
   <div id="queue-toast">Saved to queue!</div>
+
+  <div id="warn-overlay">
+    <div id="warn-dialog">
+      <h3>⚠️ Not all pages viewed</h3>
+      <p id="warn-msg">You have selected all observations but haven't viewed all pages yet. Send to queue anyway?</p>
+      <div class="warn-btns">
+        <button id="warn-confirm" class="toolbar-btn">Send anyway <kbd>(Enter)</kbd></button>
+        <button id="warn-cancel"  class="toolbar-btn">Go back <kbd>(Esc)</kbd></button>
+      </div>
+    </div>
+  </div>
 
   <div id="ctrl-overlay">
     <div class="ctrl-zone ctrl-zone-tl" data-type="juvenile" title="Live Juvenile">Juv<br>Alive</div>
