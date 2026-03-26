@@ -151,9 +151,14 @@ document.addEventListener('DOMContentLoaded', function() {
   const queueSection = document.getElementById('queueSection');
   const queueList = document.getElementById('queueList');
   const queueBadge = document.getElementById('queueBadge');
-  const processQueuesButton = document.getElementById('processQueuesButton');
+  const processAllButton = document.getElementById('processAllButton');
+  const processSelectedButton = document.getElementById('processSelectedButton');
   const selectAllQueuesButton = document.getElementById('selectAllQueues');
   let selectedQueueIds = new Set();
+
+  function saveSelectedQueueIds() {
+    chrome.storage.local.set({ innat_selected_queue_ids: Array.from(selectedQueueIds) });
+  }
 
   selectAllQueuesButton.addEventListener('click', () => {
     chrome.storage.local.get(['innat_queues'], result => {
@@ -164,11 +169,16 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         queues.forEach(q => selectedQueueIds.add(q.id));
       }
+      saveSelectedQueueIds();
       renderQueues(queues);
     });
   });
 
-  loadQueues();
+  // Restore persisted selection on open
+  chrome.storage.local.get(['innat_selected_queue_ids'], result => {
+    (result.innat_selected_queue_ids || []).forEach(id => selectedQueueIds.add(id));
+    loadQueues();
+  });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && (changes.innat_queues || changes.innat_current_collection)) {
@@ -178,7 +188,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function loadQueues() {
     chrome.storage.local.get(['innat_queues'], result => {
-      renderQueues(result.innat_queues || []);
+      const queues = result.innat_queues || [];
+      // Prune stale selected IDs for queues that no longer exist
+      const existingIds = new Set(queues.map(q => q.id));
+      for (const id of selectedQueueIds) {
+        if (!existingIds.has(id)) selectedQueueIds.delete(id);
+      }
+      renderQueues(queues);
     });
   }
 
@@ -204,8 +220,13 @@ document.addEventListener('DOMContentLoaded', function() {
       dot.className = 'queue-dot';
       dot.textContent = '●';
       const isProcessing = queue.status === 'processing';
+      const isCompleted = queue.status === 'completed';
       const isSelected = selectedQueueIds.has(queue.id);
-      dot.classList.add(isProcessing ? 'dot-processing' : isSelected ? 'dot-selected' : 'dot-idle');
+      dot.classList.add(
+        isProcessing ? 'dot-processing' :
+        isCompleted  ? 'dot-completed'  :
+        isSelected   ? 'dot-selected'   : 'dot-idle'
+      );
       if (!isProcessing) {
         dot.addEventListener('click', () => {
           if (selectedQueueIds.has(queue.id)) {
@@ -213,6 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             selectedQueueIds.add(queue.id);
           }
+          saveSelectedQueueIds();
           renderQueues(queues);
         });
       }
@@ -235,6 +257,7 @@ document.addEventListener('DOMContentLoaded', function() {
       deleteBtn.title = 'Delete queue';
       deleteBtn.addEventListener('click', () => {
         selectedQueueIds.delete(queue.id);
+        saveSelectedQueueIds();
         deleteQueue(queue.id);
       });
 
@@ -248,14 +271,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updateProcessQueuesButton(queues) {
+    const allObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
     const checked = queues.filter(q => selectedQueueIds.has(q.id));
-    if (checked.length === 0) {
-      const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
-      processQueuesButton.textContent = `▶ Process All (${totalObs} obs)`;
-    } else {
-      const totalObs = checked.reduce((sum, q) => sum + q.observations.length, 0);
-      processQueuesButton.textContent = `▶ Process Selected (${totalObs} obs)`;
-    }
+    const selectedObs = checked.reduce((sum, q) => sum + q.observations.length, 0);
+    processAllButton.textContent = `▶ All (${allObs})`;
+    processSelectedButton.textContent = `▶ Selected (${selectedObs})`;
+    processSelectedButton.disabled = checked.length === 0;
   }
 
   function deleteQueue(id) {
@@ -265,14 +286,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  processQueuesButton.addEventListener('click', () => {
+  processAllButton.addEventListener('click', () => {
     chrome.storage.local.get(['innat_queues'], result => {
       const allQueues = result.innat_queues || [];
-      const ids = selectedQueueIds.size > 0
-        ? Array.from(selectedQueueIds)
-        : allQueues.map(q => q.id);
-      _processQueues(ids);
+      allQueues.forEach(q => selectedQueueIds.add(q.id));
+      saveSelectedQueueIds();
+      _processQueues(allQueues.map(q => q.id));
     });
+  });
+
+  processSelectedButton.addEventListener('click', () => {
+    _processQueues(Array.from(selectedQueueIds));
   });
 
   function _processQueues(ids) {
@@ -280,14 +304,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     statusDiv.textContent = 'Processing queues...';
     statusDiv.style.color = '#FF9800';
-    processQueuesButton.disabled = true;
+    processAllButton.disabled = true;
+    processSelectedButton.disabled = true;
 
     // Get JWT from the current tab before handing off to background
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
       chrome.tabs.sendMessage(tabs[0].id, { action: 'getJwt' }, jwtResponse => {
         const jwt = jwtResponse?.jwt || null;
         chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids, jwt }, response => {
-          processQueuesButton.disabled = false;
+          processAllButton.disabled = false;
+          processSelectedButton.disabled = selectedQueueIds.size === 0;
           if (chrome.runtime.lastError || !response) {
             statusDiv.textContent = 'Error starting queue processing';
             statusDiv.style.color = 'red';
@@ -295,6 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
             statusDiv.textContent = 'Queue processing complete!';
             statusDiv.style.color = 'green';
             selectedQueueIds.clear();
+            saveSelectedQueueIds();
             loadQueues();
           } else {
             statusDiv.textContent = `Error: ${response.error}`;

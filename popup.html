@@ -169,7 +169,8 @@
       cursor: pointer;
       user-select: none;
     }
-    .queue-dot.dot-processing { color: #4CAF50; }
+    .queue-dot.dot-completed  { color: #4CAF50; }
+    .queue-dot.dot-processing { color: #FF9800; }
     .queue-dot.dot-selected   { color: #2196F3; }
     .queue-dot.dot-idle       { color: #ccc; }
     .queue-item-name {
@@ -189,11 +190,17 @@
       width: auto;
       min-width: 0;
     }
-    .process-queues-btn {
-      background-color: #7B1FA2;
+    .queue-btn-row {
+      display: flex;
+      gap: 4px;
       margin-top: 6px;
     }
-    .process-queues-btn:hover {
+    .process-queues-btn {
+      background-color: #7B1FA2;
+      flex: 1;
+      margin-top: 0;
+    }
+    .process-queues-btn:hover:not(:disabled) {
       background-color: #6A1B9A;
     }
   </style>
@@ -230,9 +237,10 @@
       <span id="queueBadge" class="queue-badge">0</span>
     </div>
     <div id="queueList" class="queue-list"></div>
-    <button id="processQueuesButton" class="process-queues-btn">
-      ▶ Process Selected
-    </button>
+    <div class="queue-btn-row">
+      <button id="processAllButton" class="process-queues-btn">▶ All</button>
+      <button id="processSelectedButton" class="process-queues-btn">▶ Selected</button>
+    </div>
   </div>
 
   <div id="status" class="status"></div>

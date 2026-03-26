@@ -744,7 +744,7 @@ document.getElementById('btn-select-all').addEventListener('click', () => {
   updateStatusInfo();
 });
 
-document.getElementById('btn-process').addEventListener('click', addToQueue);
+document.getElementById('btn-process').addEventListener('click', () => tryAddToQueue(false));
 
 document.getElementById('btn-cancel').addEventListener('click', () => {
   chrome.storage.local.remove('innat_custom_bulk');
@@ -798,30 +798,22 @@ document.addEventListener('keydown', (e) => {
 // Warning modal for unvisited pages
 // ---------------------------------------------------------------------------
 
-function allPagesVisited() {
-  if (dataStatus !== 'ready') return false;
-  const total = totalDisplayPages();
-  for (let i = 1; i <= total; i++) {
-    if (!visitedPages.has(i)) return false;
-  }
-  return true;
-}
 
 function selectAllIsActive() {
   return allObservations.length > 0 &&
     allObservations.every(o => selectedIds.has(o.id));
 }
 
-function tryAddToQueue() {
-  if (selectAllIsActive() && !allPagesVisited()) {
-    const total = totalDisplayPages();
-    const seen = visitedPages.size;
-    document.getElementById('warn-msg').textContent =
-      `You selected all observations but only viewed ${seen} of ${total} pages. Send to queue anyway?`;
+let _warnCloseAfter = true;
+
+function tryAddToQueue(closeAfter = true) {
+  _warnCloseAfter = closeAfter;
+  if ((selectAllActive || selectAllIsActive()) && totalDisplayPages() > 1) {
     document.getElementById('warn-current-page').textContent = currentPage;
     document.getElementById('warn-overlay').classList.add('visible');
   } else {
-    addToQueue().then(() => window.close());
+    const p = addToQueue();
+    if (closeAfter) p.then(() => window.close());
   }
 }
 
@@ -833,8 +825,10 @@ document.getElementById('warn-trim-confirm').addEventListener('click', () => {
   for (const id of selectedIds) {
     if (!keepIds.has(id)) selectedIds.delete(id);
   }
-  addToQueue().then(() => window.close());
+  const p = addToQueue();
+  if (_warnCloseAfter) p.then(() => window.close());
 });
+
 
 document.getElementById('warn-cancel').addEventListener('click', () => {
   document.getElementById('warn-overlay').classList.remove('visible');
