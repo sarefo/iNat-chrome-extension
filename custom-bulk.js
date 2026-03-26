@@ -808,7 +808,7 @@ let _warnCloseAfter = true;
 
 function tryAddToQueue(closeAfter = true) {
   _warnCloseAfter = closeAfter;
-  if ((selectAllActive || selectAllIsActive()) && totalDisplayPages() > 1) {
+  if ((selectAllActive || selectAllIsActive()) && totalDisplayPages() > 1 && !visitedPages.has(totalDisplayPages())) {
     document.getElementById('warn-current-page').textContent = currentPage;
     document.getElementById('warn-overlay').classList.add('visible');
   } else {
