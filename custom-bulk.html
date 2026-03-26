@@ -368,11 +368,12 @@
     }
     #warn-dialog .warn-btns {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
     }
-    #warn-confirm { background: #f44336; }
-    #warn-cancel  { background: #9E9E9E; }
+    #warn-trim-confirm  { background: #e65100; }
+    #warn-cancel        { background: #9E9E9E; }
   </style>
 </head>
 <body>
@@ -413,8 +414,8 @@
       <h3>⚠️ Not all pages viewed</h3>
       <p id="warn-msg">You have selected all observations but haven't viewed all pages yet. Send to queue anyway?</p>
       <div class="warn-btns">
-        <button id="warn-confirm" class="toolbar-btn">Send anyway <kbd>(Enter)</kbd></button>
-        <button id="warn-cancel"  class="toolbar-btn">Go back <kbd>(Esc)</kbd></button>
+        <button id="warn-trim-confirm" class="toolbar-btn">Send up to page <span id="warn-current-page"></span> <kbd>(Enter)</kbd></button>
+        <button id="warn-cancel"       class="toolbar-btn">Go back <kbd>(Esc)</kbd></button>
       </div>
     </div>
   </div>

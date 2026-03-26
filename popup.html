@@ -162,6 +162,16 @@
     .queue-item:last-child {
       border-bottom: none;
     }
+    .queue-dot {
+      font-size: 13px;
+      line-height: 1;
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .queue-dot.dot-processing { color: #4CAF50; }
+    .queue-dot.dot-selected   { color: #2196F3; }
+    .queue-dot.dot-idle       { color: #ccc; }
     .queue-item-name {
       flex: 1;
       overflow: hidden;
@@ -220,7 +230,7 @@
       <span id="queueBadge" class="queue-badge">0</span>
     </div>
     <div id="queueList" class="queue-list"></div>
-    <button id="processQueuesButton" class="process-queues-btn" style="display:none">
+    <button id="processQueuesButton" class="process-queues-btn">
       ▶ Process Selected
     </button>
   </div>

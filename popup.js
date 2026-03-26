@@ -189,7 +189,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     queueSection.style.display = 'block';
-    queueBadge.textContent = queues.length;
+    const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
+    const totalDone = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
+    queueBadge.textContent = `${totalDone}/${totalObs}`;
     const allSelected = queues.every(q => selectedQueueIds.has(q.id));
     selectAllQueuesButton.textContent = allSelected ? 'Deselect All' : 'Select All';
     queueList.innerHTML = '';
@@ -198,17 +200,22 @@ document.addEventListener('DOMContentLoaded', function() {
       const item = document.createElement('div');
       item.className = 'queue-item';
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = selectedQueueIds.has(queue.id);
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-          selectedQueueIds.add(queue.id);
-        } else {
-          selectedQueueIds.delete(queue.id);
-        }
-        updateProcessQueuesButton(queues);
-      });
+      const dot = document.createElement('span');
+      dot.className = 'queue-dot';
+      dot.textContent = '●';
+      const isProcessing = queue.status === 'processing';
+      const isSelected = selectedQueueIds.has(queue.id);
+      dot.classList.add(isProcessing ? 'dot-processing' : isSelected ? 'dot-selected' : 'dot-idle');
+      if (!isProcessing) {
+        dot.addEventListener('click', () => {
+          if (selectedQueueIds.has(queue.id)) {
+            selectedQueueIds.delete(queue.id);
+          } else {
+            selectedQueueIds.add(queue.id);
+          }
+          renderQueues(queues);
+        });
+      }
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'queue-item-name';
@@ -231,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteQueue(queue.id);
       });
 
-      item.appendChild(checkbox);
+      item.appendChild(dot);
       item.appendChild(nameSpan);
       item.appendChild(deleteBtn);
       queueList.appendChild(item);
@@ -243,10 +250,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateProcessQueuesButton(queues) {
     const checked = queues.filter(q => selectedQueueIds.has(q.id));
     if (checked.length === 0) {
-      processQueuesButton.style.display = 'none';
+      const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
+      processQueuesButton.textContent = `▶ Process All (${totalObs} obs)`;
     } else {
       const totalObs = checked.reduce((sum, q) => sum + q.observations.length, 0);
-      processQueuesButton.style.display = 'block';
       processQueuesButton.textContent = `▶ Process Selected (${totalObs} obs)`;
     }
   }
@@ -259,7 +266,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   processQueuesButton.addEventListener('click', () => {
-    const ids = Array.from(selectedQueueIds);
+    chrome.storage.local.get(['innat_queues'], result => {
+      const allQueues = result.innat_queues || [];
+      const ids = selectedQueueIds.size > 0
+        ? Array.from(selectedQueueIds)
+        : allQueues.map(q => q.id);
+      _processQueues(ids);
+    });
+  });
+
+  function _processQueues(ids) {
     if (ids.length === 0) return;
 
     statusDiv.textContent = 'Processing queues...';
@@ -287,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
     });
-  });
+  }
 
   usernameDisplay.addEventListener('click', function() {
     usernameDisplay.style.display = 'none';

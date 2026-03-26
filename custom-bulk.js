@@ -818,14 +818,21 @@ function tryAddToQueue() {
     const seen = visitedPages.size;
     document.getElementById('warn-msg').textContent =
       `You selected all observations but only viewed ${seen} of ${total} pages. Send to queue anyway?`;
+    document.getElementById('warn-current-page').textContent = currentPage;
     document.getElementById('warn-overlay').classList.add('visible');
   } else {
     addToQueue().then(() => window.close());
   }
 }
 
-document.getElementById('warn-confirm').addEventListener('click', () => {
+document.getElementById('warn-trim-confirm').addEventListener('click', () => {
   document.getElementById('warn-overlay').classList.remove('visible');
+  const keepIds = new Set(
+    allObservations.slice(0, currentPage * PAGE_SIZE).map(o => o.id)
+  );
+  for (const id of selectedIds) {
+    if (!keepIds.has(id)) selectedIds.delete(id);
+  }
   addToQueue().then(() => window.close());
 });
 
@@ -834,14 +841,14 @@ document.getElementById('warn-cancel').addEventListener('click', () => {
 });
 
 document.getElementById('warn-overlay').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('warn-confirm').click();
+  if (e.key === 'Enter') document.getElementById('warn-trim-confirm').click();
   if (e.key === 'Escape') document.getElementById('warn-cancel').click();
 });
 
 // Also handle Enter/Esc globally when modal is open
 document.addEventListener('keydown', (e) => {
   if (!document.getElementById('warn-overlay').classList.contains('visible')) return;
-  if (e.key === 'Enter') { e.stopImmediatePropagation(); document.getElementById('warn-confirm').click(); }
+  if (e.key === 'Enter') { e.stopImmediatePropagation(); document.getElementById('warn-trim-confirm').click(); }
   if (e.key === 'Escape') { e.stopImmediatePropagation(); document.getElementById('warn-cancel').click(); }
 }, true);
 
