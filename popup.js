@@ -154,7 +154,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const processAllButton = document.getElementById('processAllButton');
   const processSelectedButton = document.getElementById('processSelectedButton');
   const selectAllQueuesButton = document.getElementById('selectAllQueues');
+  const clearCompletedButton = document.getElementById('clearCompletedQueues');
   let selectedQueueIds = new Set();
+  let isRunning = false;
+  let pendingQueueIds = new Set();
+  let cancelCurrentRequested = false;
 
   function saveSelectedQueueIds() {
     chrome.storage.local.set({ innat_selected_queue_ids: Array.from(selectedQueueIds) });
@@ -174,6 +178,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  clearCompletedButton.addEventListener('click', () => {
+    chrome.storage.local.get(['innat_queues'], result => {
+      const queues = (result.innat_queues || []).filter(q => q.status !== 'completed');
+      const remaining = new Set(queues.map(q => q.id));
+      for (const id of selectedQueueIds) {
+        if (!remaining.has(id)) selectedQueueIds.delete(id);
+      }
+      saveSelectedQueueIds();
+      chrome.storage.local.set({ innat_queues: queues }, () => loadQueues());
+    });
+  });
+
   // Restore persisted selection on open
   chrome.storage.local.get(['innat_selected_queue_ids'], result => {
     (result.innat_selected_queue_ids || []).forEach(id => selectedQueueIds.add(id));
@@ -181,7 +197,11 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.innat_queues || changes.innat_current_collection)) {
+    if (area !== 'local') return;
+    if (changes.innat_pending_queue_ids) {
+      pendingQueueIds = new Set(changes.innat_pending_queue_ids.newValue || []);
+    }
+    if (changes.innat_queues || changes.innat_current_collection || changes.innat_pending_queue_ids) {
       loadQueues();
     }
   });
@@ -205,6 +225,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     queueSection.style.display = 'block';
+    // Sync running state from queue data (handles popup reopen mid-run)
+    if (queues.some(q => q.status === 'processing')) isRunning = true;
     const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
     const totalDone = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
     queueBadge.textContent = `${totalDone}/${totalObs}`;
@@ -221,23 +243,37 @@ document.addEventListener('DOMContentLoaded', function() {
       dot.textContent = '●';
       const isProcessing = queue.status === 'processing';
       const isCompleted = queue.status === 'completed';
-      const isSelected = selectedQueueIds.has(queue.id);
+      const isSelected = isRunning ? pendingQueueIds.has(queue.id) : selectedQueueIds.has(queue.id);
       dot.classList.add(
         isProcessing ? 'dot-processing' :
         isCompleted  ? 'dot-completed'  :
         isSelected   ? 'dot-selected'   : 'dot-idle'
       );
-      if (!isProcessing) {
-        dot.addEventListener('click', () => {
-          if (selectedQueueIds.has(queue.id)) {
-            selectedQueueIds.delete(queue.id);
+      dot.addEventListener('click', () => {
+          if (isProcessing) {
+            // Cancel the currently running queue; progress is preserved via processedObservations
+            cancelCurrentRequested = true;
+            chrome.storage.local.set({ innat_cancel_current_queue: true });
+            renderQueues(queues);
+          } else if (isRunning) {
+            // Dynamically add/remove from background's pending list
+            if (pendingQueueIds.has(queue.id)) {
+              pendingQueueIds.delete(queue.id);
+            } else {
+              pendingQueueIds.add(queue.id);
+            }
+            chrome.storage.local.set({ innat_pending_queue_ids: Array.from(pendingQueueIds) });
+            renderQueues(queues);
           } else {
-            selectedQueueIds.add(queue.id);
+            if (selectedQueueIds.has(queue.id)) {
+              selectedQueueIds.delete(queue.id);
+            } else {
+              selectedQueueIds.add(queue.id);
+            }
+            saveSelectedQueueIds();
+            renderQueues(queues);
           }
-          saveSelectedQueueIds();
-          renderQueues(queues);
         });
-      }
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'queue-item-name';
@@ -272,8 +308,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updateProcessQueuesButton(queues) {
     const allObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
-    const checked = queues.filter(q => selectedQueueIds.has(q.id));
-    const selectedObs = checked.reduce((sum, q) => sum + q.observations.length, 0);
+    const activeIds = isRunning ? pendingQueueIds : selectedQueueIds;
+    const checked = queues.filter(q => activeIds.has(q.id));
+    let selectedObs = checked.reduce((sum, q) => sum + q.observations.length, 0);
+    if (!cancelCurrentRequested) {
+      const processing = queues.find(q => q.status === 'processing');
+      if (processing) selectedObs += processing.observations.length;
+    }
     processAllButton.textContent = `▶ All (${allObs})`;
     processSelectedButton.textContent = `▶ Selected (${selectedObs})`;
     processSelectedButton.disabled = checked.length === 0;
@@ -291,29 +332,36 @@ document.addEventListener('DOMContentLoaded', function() {
       const allQueues = result.innat_queues || [];
       allQueues.forEach(q => selectedQueueIds.add(q.id));
       saveSelectedQueueIds();
-      _processQueues(allQueues.map(q => q.id));
+      _processQueues(allQueues.map(q => q.id), processAllButton);
     });
   });
 
   processSelectedButton.addEventListener('click', () => {
-    _processQueues(Array.from(selectedQueueIds));
+    _processQueues(Array.from(selectedQueueIds), processSelectedButton);
   });
 
-  function _processQueues(ids) {
+  function _processQueues(ids, activeButton) {
     if (ids.length === 0) return;
 
     statusDiv.textContent = 'Processing queues...';
     statusDiv.style.color = '#FF9800';
     processAllButton.disabled = true;
     processSelectedButton.disabled = true;
+    activeButton.classList.add('running');
+    isRunning = true;
+    pendingQueueIds = new Set(ids);
 
     // Get JWT from the current tab before handing off to background
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
       chrome.tabs.sendMessage(tabs[0].id, { action: 'getJwt' }, jwtResponse => {
         const jwt = jwtResponse?.jwt || null;
         chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids, jwt }, response => {
+          isRunning = false;
+          pendingQueueIds.clear();
+          cancelCurrentRequested = false;
           processAllButton.disabled = false;
           processSelectedButton.disabled = selectedQueueIds.size === 0;
+          activeButton.classList.remove('running');
           if (chrome.runtime.lastError || !response) {
             statusDiv.textContent = 'Error starting queue processing';
             statusDiv.style.color = 'red';

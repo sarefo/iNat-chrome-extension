@@ -165,7 +165,7 @@ export async function postObservationFieldViaApi(obsId, fieldId, value, jwt) {
 // Process multiple observations via API (exported for background-main.js)
 // jwt is passed directly from the content script; falls back to tab query if not provided
 // onProgress(obsId) is called after each observation completes (optional)
-export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress, progressSender = null) {
+export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress, progressSender = null, shouldCancel = null) {
   const startTime = Date.now();
   if (!jwt) {
     jwt = await getJwtFromInatTab(); // fallback for queue processing
@@ -217,6 +217,11 @@ export async function processBulkObservationsViaApi(observations, mode, sourceTa
     completed++;
     if (onProgress) onProgress(obsId);
     sendProgressUpdate(false);
+    if (shouldCancel && await shouldCancel()) {
+      const err = new Error('Queue cancelled by user');
+      err.isCancelled = true;
+      throw err;
+    }
   }
 
   sendProgressUpdate(true);

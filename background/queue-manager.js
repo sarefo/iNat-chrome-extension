@@ -42,14 +42,36 @@ async function resetStuckQueues() {
   await setQueues(queues);
 }
 
+async function getPendingQueueIds() {
+  return new Promise(resolve => {
+    chrome.storage.local.get(['innat_pending_queue_ids'], data => resolve(data.innat_pending_queue_ids || []));
+  });
+}
+
+async function setPendingQueueIds(ids) {
+  return new Promise(resolve => {
+    chrome.storage.local.set({ innat_pending_queue_ids: ids }, resolve);
+  });
+}
+
 // Process queued observations sequentially (exported for background-main.js)
 export async function processQueuedObservations(queueIds, jwt) {
   await resetStuckQueues();
 
-  const queues = await getQueues();
+  // Write pending IDs to storage so popup can modify them mid-run
+  await setPendingQueueIds([...queueIds]);
+
   const results = [];
 
-  for (const queueId of queueIds) {
+  while (true) {
+    // Re-read pending IDs each iteration so popup changes take effect
+    const pendingIds = await getPendingQueueIds();
+    if (pendingIds.length === 0) break;
+
+    const queueId = pendingIds[0];
+    await setPendingQueueIds(pendingIds.slice(1));
+
+    const queues = await getQueues();
     const queue = queues.find(q => q.id === queueId);
     if (!queue) {
       console.warn(`Queue ${queueId} not found`);
@@ -63,22 +85,34 @@ export async function processQueuedObservations(queueIds, jwt) {
     console.log(`Processing queue ${queue.id}: ${remaining.length} remaining (${alreadyDone.size} already done) with mode ${queue.annotationType}`);
     await updateQueueStatus(queue.id, 'processing');
 
+    const shouldCancel = () => new Promise(resolve =>
+      chrome.storage.local.get(['innat_cancel_current_queue'], data => resolve(!!data.innat_cancel_current_queue))
+    );
+
     try {
       const queueResults = await processBulkObservationsViaApi(
         remaining,
         queue.annotationType,
         null, // no source tab for queue processing
         jwt,
-        (obsId) => markObservationProcessed(queue.id, obsId)
+        (obsId) => markObservationProcessed(queue.id, obsId),
+        null,
+        shouldCancel
       );
       await updateQueueStatus(queue.id, 'completed');
       results.push({ queueId, success: true, count: queueResults.length });
     } catch (error) {
-      console.error(`Error processing queue ${queue.id}:`, error);
       await updateQueueStatus(queue.id, 'pending');
-      results.push({ queueId, success: false, error: error.message });
+      if (error.isCancelled) {
+        await new Promise(resolve => chrome.storage.local.remove('innat_cancel_current_queue', resolve));
+        results.push({ queueId, cancelled: true });
+      } else {
+        console.error(`Error processing queue ${queue.id}:`, error);
+        results.push({ queueId, success: false, error: error.message });
+      }
     }
   }
 
+  await setPendingQueueIds([]);
   return { results, processed: results.filter(r => r.success).length };
 }

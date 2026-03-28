@@ -193,15 +193,18 @@
     .queue-btn-row {
       display: flex;
       gap: 4px;
-      margin-top: 6px;
+      margin-bottom: 6px;
     }
     .process-queues-btn {
-      background-color: #7B1FA2;
+      background-color: #2196F3;
       flex: 1;
       margin-top: 0;
     }
     .process-queues-btn:hover:not(:disabled) {
-      background-color: #6A1B9A;
+      background-color: #1976D2;
+    }
+    .process-queues-btn.running {
+      background-color: #4CAF50;
     }
   </style>
 </head>
@@ -234,13 +237,14 @@
     <div class="queue-header">
       <span>📋 Queues</span>
       <button id="selectAllQueues" class="queue-select-all">Select All</button>
+      <button id="clearCompletedQueues" class="queue-select-all">Clear Completed</button>
       <span id="queueBadge" class="queue-badge">0</span>
     </div>
-    <div id="queueList" class="queue-list"></div>
     <div class="queue-btn-row">
       <button id="processAllButton" class="process-queues-btn">▶ All</button>
       <button id="processSelectedButton" class="process-queues-btn">▶ Selected</button>
     </div>
+    <div id="queueList" class="queue-list"></div>
   </div>
 
   <div id="status" class="status"></div>
