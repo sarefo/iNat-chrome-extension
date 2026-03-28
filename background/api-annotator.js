@@ -4,9 +4,12 @@ const RATE_LIMIT_MS = 150;
 // Each entry: { a: controlled_attribute_id, v: controlled_value_id }
 const ANNOTATION_CONFIGS = {
   'adult-alive':             [{a:1,v:2},{a:17,v:18},{a:22,v:24}],
+  'adult-cannot':            [{a:1,v:2},{a:17,v:20},{a:22,v:24}],
   'adult-dead':              [{a:1,v:2},{a:17,v:19},{a:22,v:24}],
   'juvenile':                [{a:1,v:8},{a:17,v:18},{a:22,v:24}],
+  'juvenile-cannot':         [{a:1,v:8},{a:17,v:20},{a:22,v:24}],
   'juvenile-dead':           [{a:1,v:8},{a:17,v:19},{a:22,v:24}],
+  'dead-only':               [{a:17,v:19},{a:22,v:24}],
   'molt':                    [{a:17,v:19},{a:22,v:28}],
   'age-unknown':             [{a:17,v:18},{a:22,v:24}],
   'plant-flowers':           [{a:12,v:13},{a:36,v:38}],
@@ -16,6 +19,10 @@ const ANNOTATION_CONFIGS = {
   'sex-male':                [{a:9,v:11}],
   'eop-construction':        [{a:22,v:35}],
   'eop-egg':                 [{a:22,v:30}],
+  'eop-gall':                [{a:22,v:29}],
+  'eop-molt':                [{a:22,v:28}],
+  'eop-track':               [{a:22,v:26}],
+  'life-pupa':               [{a:1,v:4}],
 };
 
 // Query the first open iNat tab and extract its JWT directly from the page meta tag

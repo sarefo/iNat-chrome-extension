@@ -390,10 +390,14 @@ document.addEventListener('mousemove', e => {
 
 const SHIFT_ANNOTATION_LABELS = {
   'sex-female':        '♀ Female',
-  'sex-male':          '♂ Male',
-  'eop-construction':  '🏗 Construction',
-  'eop-egg':           '🥚 Egg',
   'mating':            '❤️ Mating',
+  'sex-male':          '♂ Male',
+  'eop-egg':           '🥚 Egg',
+  'eop-molt':          '🪲 Molt',
+  'life-pupa':         '🐛 Pupa',
+  'eop-construction':  '🏗 Construction',
+  'eop-gall':          '🌿 Gall',
+  'eop-track':         '👣 Track',
 };
 
 let shiftHeld = false;
@@ -511,9 +515,12 @@ document.getElementById('help-overlay').addEventListener('click', e => {
 
 const ANNOTATION_LABELS = {
   'adult-alive':             '🦆 Adult Alive',
+  'adult-cannot':            '❓ Adult Cannot Be Determined',
   'adult-dead':              '💀 Adult Dead',
-  'juvenile':                '🐛 Juvenile',
+  'juvenile':                '🐛 Juvenile Alive',
+  'juvenile-cannot':         '❓ Juvenile Cannot Be Determined',
   'juvenile-dead':           '💀 Juvenile Dead',
+  'dead-only':               '💀 Dead (no age)',
   'molt':                    '💀 Molt',
   'age-unknown':             '❓ Age Unknown',
   'plant-flowers':           '🌼 Flowers',

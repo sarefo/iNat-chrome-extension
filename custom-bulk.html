@@ -189,8 +189,8 @@
       position: fixed;
       z-index: 500;
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
       border-radius: 8px;
       overflow: hidden;
       visibility: hidden;
@@ -215,30 +215,27 @@
       transition: filter 0.1s;
     }
     .ctrl-zone:hover { filter: brightness(1.25); }
-    .ctrl-zone-tl { background: rgba(76, 175, 80, 0.82); }
-    .ctrl-zone-tr { background: rgba(33, 150, 243, 0.82); }
-    .ctrl-zone-bl { background: rgba(255, 152, 0, 0.82); }
-    .ctrl-zone-br { background: rgba(244, 67, 54, 0.82); }
+    .ctrl-zone-juv-alive   { background: rgba(76, 175, 80, 0.82); }
+    .ctrl-zone-juv-cannot  { background: rgba(205, 220, 57, 0.82); }
+    .ctrl-zone-juv-dead    { background: rgba(255, 152, 0, 0.82); }
+    .ctrl-zone-alive-only  { background: rgba(0, 150, 136, 0.82); }
+    .ctrl-zone-dead-only   { background: rgba(121, 85, 72, 0.82); }
+    .ctrl-zone-adult-alive { background: rgba(33, 150, 243, 0.82); }
+    .ctrl-zone-adult-cannot{ background: rgba(156, 39, 176, 0.82); }
+    .ctrl-zone-adult-dead  { background: rgba(244, 67, 54, 0.82); }
     .ctrl-zone-center {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 60px;
-      height: 60px;
       background: rgba(30, 30, 30, 0.75);
-      border-radius: 50%;
       font-size: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      border: 2px solid rgba(255,255,255,0.5);
-      z-index: 1;
+      color: white;
+      user-select: none;
+      transition: filter 0.1s;
     }
     .ctrl-zone-center:hover {
       background: rgba(60, 60, 60, 0.88);
-      filter: none;
     }
 
     /* Shift-hover quick annotation overlay */
@@ -246,8 +243,8 @@
       position: fixed;
       z-index: 500;
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
       border-radius: 8px;
       overflow: hidden;
       visibility: hidden;
@@ -272,31 +269,15 @@
       transition: filter 0.1s;
     }
     .shift-zone:hover { filter: brightness(1.25); }
-    .shift-zone-tl { background: rgba(194, 24, 91, 0.82); }
-    .shift-zone-tr { background: rgba(21, 101, 192, 0.82); }
-    .shift-zone-bl { background: rgba(109, 76, 65, 0.82); }
-    .shift-zone-br { background: rgba(245, 127, 23, 0.82); }
-    .shift-zone-center {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 60px;
-      height: 60px;
-      background: rgba(106, 27, 154, 0.82);
-      border-radius: 50%;
-      font-size: 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      border: 2px solid rgba(255,255,255,0.5);
-      z-index: 1;
-    }
-    .shift-zone-center:hover {
-      background: rgba(123, 31, 162, 0.95);
-      filter: none;
-    }
+    .shift-zone-female       { background: rgba(194, 24, 91, 0.82); }
+    .shift-zone-mating       { background: rgba(106, 27, 154, 0.82); }
+    .shift-zone-male         { background: rgba(21, 101, 192, 0.82); }
+    .shift-zone-egg          { background: rgba(245, 127, 23, 0.82); }
+    .shift-zone-molt         { background: rgba(109, 76, 65, 0.82); }
+    .shift-zone-pupa         { background: rgba(85, 139, 47, 0.82); }
+    .shift-zone-construction { background: rgba(78, 52, 46, 0.82); }
+    .shift-zone-gall         { background: rgba(46, 125, 50, 0.82); }
+    .shift-zone-track        { background: rgba(55, 71, 79, 0.82); }
 
     /* Help modal */
     #help-overlay {
@@ -421,11 +402,15 @@
   </div>
 
   <div id="shift-overlay">
-    <div class="shift-zone shift-zone-tl" data-type="sex-female" title="Female">♀<br>Female</div>
-    <div class="shift-zone shift-zone-tr" data-type="sex-male"   title="Male">♂<br>Male</div>
-    <div class="shift-zone shift-zone-bl" data-type="eop-construction" title="Construction">🏗<br>Constr.</div>
-    <div class="shift-zone shift-zone-br" data-type="eop-egg"   title="Egg (Evidence of Presence)">🥚<br>Egg</div>
-    <div class="shift-zone shift-zone-center" data-type="mating" title="Mating (observation field)">❤️</div>
+    <div class="shift-zone shift-zone-female"       data-type="sex-female"       title="Female">♀<br>Female</div>
+    <div class="shift-zone shift-zone-mating"       data-type="mating"           title="Mating (observation field)">❤️<br>Mating</div>
+    <div class="shift-zone shift-zone-male"         data-type="sex-male"         title="Male">♂<br>Male</div>
+    <div class="shift-zone shift-zone-egg"          data-type="eop-egg"          title="Egg (Evidence of Presence)">🥚<br>Egg</div>
+    <div class="shift-zone shift-zone-molt"         data-type="eop-molt"         title="Molt (Evidence of Presence)">🪲<br>Molt</div>
+    <div class="shift-zone shift-zone-pupa"         data-type="life-pupa"        title="Pupa (Life Stage)">🐛<br>Pupa</div>
+    <div class="shift-zone shift-zone-construction" data-type="eop-construction" title="Construction (Evidence of Presence)">🏗<br>Constr.</div>
+    <div class="shift-zone shift-zone-gall"         data-type="eop-gall"         title="Gall (Evidence of Presence)">🌿<br>Gall</div>
+    <div class="shift-zone shift-zone-track"        data-type="eop-track"        title="Track (Evidence of Presence)">👣<br>Track</div>
   </div>
 
   <div id="help-overlay">
@@ -467,11 +452,15 @@
   </div>
 
   <div id="ctrl-overlay">
-    <div class="ctrl-zone ctrl-zone-tl" data-type="juvenile" title="Live Juvenile">Juv<br>Alive</div>
-    <div class="ctrl-zone ctrl-zone-tr" data-type="adult-alive" title="Live Adult">Adult<br>Alive</div>
-    <div class="ctrl-zone ctrl-zone-bl" data-type="juvenile-dead" title="Dead Juvenile">Juv<br>Dead</div>
-    <div class="ctrl-zone ctrl-zone-br" data-type="adult-dead" title="Dead Adult">Adult<br>Dead</div>
-    <div class="ctrl-zone ctrl-zone-center" title="Open in new tab">↗</div>
+    <div class="ctrl-zone ctrl-zone-juv-alive"    data-type="juvenile"         title="Juvenile — Alive">Juv<br>Alive</div>
+    <div class="ctrl-zone ctrl-zone-alive-only"   data-type="age-unknown"      title="Alive (no age)">Alive</div>
+    <div class="ctrl-zone ctrl-zone-adult-alive"  data-type="adult-alive"      title="Adult — Alive">Adult<br>Alive</div>
+    <div class="ctrl-zone ctrl-zone-juv-cannot"   data-type="juvenile-cannot"  title="Juvenile — Cannot Be Determined">Juv<br>?</div>
+    <div class="ctrl-zone-center"                                               title="Open in new tab">↗</div>
+    <div class="ctrl-zone ctrl-zone-adult-cannot" data-type="adult-cannot"     title="Adult — Cannot Be Determined">Adult<br>?</div>
+    <div class="ctrl-zone ctrl-zone-juv-dead"     data-type="juvenile-dead"    title="Juvenile — Dead">Juv<br>Dead</div>
+    <div class="ctrl-zone ctrl-zone-dead-only"    data-type="dead-only"        title="Dead (no age)">Dead</div>
+    <div class="ctrl-zone ctrl-zone-adult-dead"   data-type="adult-dead"       title="Adult — Dead">Adult<br>Dead</div>
   </div>
 
   <script src="custom-bulk.js"></script>

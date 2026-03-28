@@ -2,11 +2,15 @@
 // Annotates the individual observation without deselecting it or opening a new tab.
 
 const SHIFT_OVERLAY_OPTIONS = [
+  { key: 'sex-female',       label: '♀ Female',        color: '#AD1457', textColor: '#fff' },
+  { key: 'mating',           label: '❤️ Mating',       color: '#6A1B9A', textColor: '#fff' },
   { key: 'sex-male',         label: '♂ Male',          color: '#1565C0', textColor: '#fff' },
-  { key: 'sex-female',       label: '♀ Female',         color: '#AD1457', textColor: '#fff' },
-  { key: 'eop-construction', label: '🏗 Construction',  color: '#6D4C41', textColor: '#fff' },
   { key: 'eop-egg',          label: '🥚 Egg',           color: '#F57F17', textColor: '#fff' },
-  { key: 'mating',           label: '❤️ Mating',        color: '#6A1B9A', textColor: '#fff' },
+  { key: 'eop-molt',         label: '🪲 Molt',          color: '#6D4C41', textColor: '#fff' },
+  { key: 'life-pupa',        label: '🐛 Pupa',          color: '#558B2F', textColor: '#fff' },
+  { key: 'eop-construction', label: '🏗 Constr.',       color: '#4E342E', textColor: '#fff' },
+  { key: 'eop-gall',         label: '🌿 Gall',          color: '#2E7D32', textColor: '#fff' },
+  { key: 'eop-track',        label: '👣 Track',         color: '#37474F', textColor: '#fff' },
 ];
 
 let activeShiftOverlay = null;
@@ -36,12 +40,12 @@ function showShiftOverlay(observationId, observationDiv) {
 
   // Position: try to the right of the observation, clamped to viewport
   const rect = observationDiv.getBoundingClientRect();
-  let top = rect.top + rect.height / 2 - 90;
+  let top = rect.top + rect.height / 2 - 100;
   let left = rect.right + 8;
 
   // Clamp to viewport
-  const overlayWidth = 170;
-  const overlayHeight = 200;
+  const overlayWidth = 198;
+  const overlayHeight = 220;
   if (left + overlayWidth > window.innerWidth) left = rect.left - overlayWidth - 8;
   if (top < 8) top = 8;
   if (top + overlayHeight > window.innerHeight) top = window.innerHeight - overlayHeight - 8;
@@ -55,10 +59,10 @@ function showShiftOverlay(observationId, observationDiv) {
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
     padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: ${overlayWidth}px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: ${overlayWidth}px;
     font-family: Arial, sans-serif;
   `;
 
@@ -71,6 +75,7 @@ function showShiftOverlay(observationId, observationDiv) {
     padding-bottom: 5px;
     border-bottom: 1px solid #eee;
     margin-bottom: 2px;
+    grid-column: 1 / -1;
   `;
   overlay.appendChild(title);
 
@@ -81,12 +86,12 @@ function showShiftOverlay(observationId, observationDiv) {
       background: ${color};
       color: ${textColor};
       border: none;
-      padding: 7px 10px;
+      padding: 6px 4px;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
-      text-align: left;
+      text-align: center;
       width: 100%;
     `;
     btn.addEventListener('mouseenter', () => { btn.style.filter = 'brightness(1.15)'; });
