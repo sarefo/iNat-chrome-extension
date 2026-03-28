@@ -804,11 +804,18 @@ function selectAllIsActive() {
     allObservations.every(o => selectedIds.has(o.id));
 }
 
+function hasSelectionsOnUnvisitedPages() {
+  return allObservations.some((o, i) => {
+    const page = Math.floor(i / PAGE_SIZE) + 1;
+    return !visitedPages.has(page) && selectedIds.has(o.id);
+  });
+}
+
 let _warnCloseAfter = true;
 
 function tryAddToQueue(closeAfter = true) {
   _warnCloseAfter = closeAfter;
-  if ((selectAllActive || selectAllIsActive()) && totalDisplayPages() > 1 && !visitedPages.has(totalDisplayPages())) {
+  if (hasSelectionsOnUnvisitedPages()) {
     document.getElementById('warn-current-page').textContent = currentPage;
     document.getElementById('warn-overlay').classList.add('visible');
   } else {
