@@ -12,8 +12,8 @@ const ANNOTATION_CONFIGS = {
   'plant-flowers':           [{a:12,v:13},{a:36,v:38}],
   'plant-fruits':            [{a:12,v:14},{a:36,v:38}],
   'plant-no-flowers-fruits': [{a:12,v:21},{a:36,v:38}],
-  'sex-female':              [{a:9,v:11}],
-  'sex-male':                [{a:9,v:10}],
+  'sex-female':              [{a:9,v:10}],
+  'sex-male':                [{a:9,v:11}],
   'eop-construction':        [{a:22,v:35}],
   'eop-egg':                 [{a:22,v:30}],
 };
