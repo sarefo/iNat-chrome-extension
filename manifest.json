@@ -23,7 +23,8 @@
       "content/bulk-selection.js",
       "content/bulk-processing.js",
       "content/bulk-ui.js",
-      "content/content-main.js"
+      "content/content-main.js",
+      "content/filter-injection.js"
     ]
   }],
   "web_accessible_resources": [{
@@ -35,7 +36,8 @@
       "content/bulk-selection.js",
       "content/bulk-processing.js",
       "content/bulk-ui.js",
-      "content/content-main.js"
+      "content/content-main.js",
+      "content/filter-injection.js"
     ],
     "matches": ["*://*.inaturalist.org/*"]
   }]
