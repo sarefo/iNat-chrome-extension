@@ -1,6 +1,6 @@
 const PAGE_SIZE = 100; // observations per display page
 
-let allObservations = []; // [{ id, photoUrl }]
+let allObservations = []; // [{ id, photoUrl, annotations }]
 let selectedIds = new Set();
 let femaleIds = new Set();
 let maleIds = new Set();
@@ -96,7 +96,7 @@ function renderGrid() {
 
   const isSex = annotationType === 'sex-split';
 
-  obs.forEach(({ id, photoUrl }) => {
+  obs.forEach(({ id, photoUrl, annotations }) => {
     const card = document.createElement('div');
     if (isSex) {
       card.className = 'obs-card sex-mode';
@@ -137,6 +137,9 @@ function renderGrid() {
       mLabel.textContent = '♂';
       card.appendChild(mLabel);
     }
+
+    const badges = buildAnnotationBadges(annotations);
+    if (badges) card.appendChild(badges);
 
     card.addEventListener('click', e => handleCardClick(e, id, card));
     grid.appendChild(card);
@@ -512,6 +515,56 @@ document.getElementById('help-overlay').addEventListener('click', e => {
 // ---------------------------------------------------------------------------
 // Queue
 // ---------------------------------------------------------------------------
+
+// Existing annotation badge display (keyed by "attrId_valId")
+const EXISTING_ANNOTATION_BADGE = {
+  // Life Stage (attr 1)
+  '1_2':  { text: 'Adult',    bg: '#1565C0' },
+  '1_3':  { text: 'Teneral',  bg: '#0277BD' },
+  '1_4':  { text: 'Pupa',     bg: '#558B2F' },
+  '1_5':  { text: 'Nymph',    bg: '#388E3C' },
+  '1_6':  { text: 'Larva',    bg: '#2E7D32' },
+  '1_7':  { text: 'Egg',      bg: '#E65100' },
+  '1_8':  { text: 'Juv',      bg: '#33691E' },
+  '1_16': { text: 'Sub',      bg: '#00695C' },
+  // Sex (attr 9)
+  '9_10': { text: '♀',        bg: '#AD1457' },
+  '9_11': { text: '♂',        bg: '#1565C0' },
+  '9_20': { text: '?',        bg: '#757575' },
+  // Alive/Dead (attr 17)
+  '17_18': { text: 'Alive',   bg: '#2E7D32' },
+  '17_19': { text: 'Dead',    bg: '#4E342E' },
+  '17_20': { text: '?',       bg: '#757575' },
+  // Evidence of Presence (attr 22)
+  '22_23': { text: 'Feather', bg: '#6D4C41' },
+  '22_24': { text: 'Org',     bg: '#546E7A' },
+  '22_25': { text: 'Scat',    bg: '#6D4C41' },
+  '22_26': { text: 'Track',   bg: '#37474F' },
+  '22_27': { text: 'Bone',    bg: '#5D4037' },
+  '22_28': { text: 'Molt',    bg: '#6D4C41' },
+  '22_29': { text: 'Gall',    bg: '#2E7D32' },
+  '22_30': { text: 'Egg',     bg: '#E65100' },
+  '22_31': { text: 'Hair',    bg: '#6D4C41' },
+  '22_32': { text: 'Mine',    bg: '#388E3C' },
+  '22_35': { text: 'Constr',  bg: '#4E342E' },
+};
+
+function buildAnnotationBadges(annotations) {
+  if (!annotations || annotations.length === 0) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'ann-badges';
+  for (const { attrId, valId } of annotations) {
+    const badge = EXISTING_ANNOTATION_BADGE[`${attrId}_${valId}`];
+    if (!badge) continue;
+    const el = document.createElement('span');
+    el.className = 'ann-badge';
+    el.textContent = badge.text;
+    el.style.background = badge.bg;
+    wrap.appendChild(el);
+  }
+  if (!wrap.hasChildNodes()) return null;
+  return wrap;
+}
 
 const ANNOTATION_LABELS = {
   'adult-alive':             '🦆 Adult Alive',

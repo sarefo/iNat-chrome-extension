@@ -22,7 +22,11 @@ function extractObs(results) {
     .filter(obs => obs.photos?.length > 0 && !obs.photos[0].url.includes('copyright-infringement'))
     .map(obs => ({
       id: String(obs.id),
-      photoUrl: obs.photos[0].url.replace(/\/square(\.\w+)$/, '/medium$1')
+      photoUrl: obs.photos[0].url.replace(/\/square(\.\w+)$/, '/medium$1'),
+      annotations: obs.annotations?.map(a => ({
+        attrId: a.controlled_attribute_id,
+        valId: a.controlled_value_id
+      })) || []
     }));
 }
 
