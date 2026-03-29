@@ -1,6 +1,58 @@
 const API_BASE = 'https://api.inaturalist.org/v1';
 const RATE_LIMIT_MS = 150;
 
+// Taxon IDs for orders that use Larva (holometabolous insects + Amphibia)
+const LARVA_TAXON_IDS = new Set([
+  47208,  // Coleoptera
+  47822,  // Diptera
+  47201,  // Hymenoptera
+  47157,  // Lepidoptera
+  49369,  // Mecoptera
+  47864,  // Megaloptera
+  48763,  // Neuroptera
+  47794,  // Raphidioptera
+  83204,  // Siphonaptera
+  83202,  // Strepsiptera
+  62164,  // Trichoptera
+  20978,  // Amphibia
+]);
+
+// Taxon IDs for orders that use Nymph (hemimetabolous insects)
+const NYMPH_TAXON_IDS = new Set([
+  81769,  // Blattodea
+  47793,  // Dermaptera
+  56834,  // Embioptera
+  48011,  // Ephemeroptera
+  47744,  // Hemiptera
+  48112,  // Mantodea
+  47792,  // Odonata
+  47651,  // Orthoptera
+  47198,  // Phasmida
+  47504,  // Plecoptera
+  83201,  // Thysanoptera
+]);
+
+// Resolve the correct Life Stage value for "juvenile" based on taxon ancestry.
+// Returns 6 (Larva), 5 (Nymph), or 8 (Juvenile).
+async function resolveJuvenileLifeStage(obsId) {
+  try {
+    const resp = await fetch(`${API_BASE}/observations/${obsId}?fields=taxon`);
+    if (!resp.ok) return 8;
+    const data = await resp.json();
+    const taxon = data.results?.[0]?.taxon;
+    if (!taxon) return 8;
+    const ids = [...(taxon.ancestor_ids || []), taxon.id];
+    for (const id of ids) {
+      if (LARVA_TAXON_IDS.has(id)) return 6;
+      if (NYMPH_TAXON_IDS.has(id)) return 5;
+    }
+  } catch (_) { /* fall through */ }
+  return 8;
+}
+
+// Modes that contain a juvenile Life Stage annotation (v:8) that needs resolving
+const JUVENILE_MODES = new Set(['juvenile', 'juvenile-cannot', 'juvenile-dead']);
+
 // Each entry: { a: controlled_attribute_id, v: controlled_value_id }
 const ANNOTATION_CONFIGS = {
   'adult-alive':             [{a:1,v:2},{a:17,v:18},{a:22,v:24}],
@@ -82,9 +134,16 @@ async function postAnnotation(jwt, obsId, attrId, valueId) {
 // Annotate a single observation via API for the given mode
 // Returns { observationId, success, results[] }
 async function annotateObservationViaApi(obsId, mode, jwt) {
-  const config = ANNOTATION_CONFIGS[mode];
+  let config = ANNOTATION_CONFIGS[mode];
   if (!config) {
     throw new Error(`Unknown annotation mode: ${mode}`);
+  }
+
+  if (JUVENILE_MODES.has(mode)) {
+    const lifeStageValue = await resolveJuvenileLifeStage(obsId);
+    if (lifeStageValue !== 8) {
+      config = config.map(entry => entry.a === 1 ? { ...entry, v: lifeStageValue } : entry);
+    }
   }
 
   const results = [];
@@ -118,8 +177,15 @@ export async function quickAnnotateSingleObs(obsId, mode) {
 }
 
 export async function annotateSingleObsViaApi(obsId, mode, jwt) {
-  const config = ANNOTATION_CONFIGS[mode];
+  let config = ANNOTATION_CONFIGS[mode];
   if (!config) throw new Error(`Unknown annotation mode: ${mode}`);
+
+  if (JUVENILE_MODES.has(mode)) {
+    const lifeStageValue = await resolveJuvenileLifeStage(obsId);
+    if (lifeStageValue !== 8) {
+      config = config.map(entry => entry.a === 1 ? { ...entry, v: lifeStageValue } : entry);
+    }
+  }
 
   const results = await Promise.all(
     config.map(({ a: attrId, v: valueId }) =>
