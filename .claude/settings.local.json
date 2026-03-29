@@ -23,7 +23,10 @@
       "Bash(curl -s \"https://api.inaturalist.org/v1/docs/#!/Observation_Field_Values/post_observation_field_values\")",
       "Bash(curl -s \"https://www.inaturalist.org/pages/api+reference\")",
       "Bash(python3 -c \"import sys; data=sys.stdin.read\\(\\); idx=data.find\\(''''observation_field_value''''\\); print\\(data[max\\(0,idx-200\\):idx+800]\\)\")",
-      "Bash(curl -s https://api.inaturalist.org/v1/swagger.json)"
+      "Bash(curl -s https://api.inaturalist.org/v1/swagger.json)",
+      "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms\")",
+      "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms/for_taxon?taxon_id=1\")",
+      "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms/for_taxon?taxon_id=47208\")"
     ],
     "deny": []
   }
