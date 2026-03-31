@@ -26,7 +26,8 @@ function extractObs(results) {
       annotations: obs.annotations?.map(a => ({
         attrId: a.controlled_attribute_id,
         valId: a.controlled_value_id
-      })) || []
+      })) || [],
+      qualityGrade: obs.quality_grade
     }));
 }
 

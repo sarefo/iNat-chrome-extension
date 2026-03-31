@@ -2,6 +2,8 @@ const PAGE_SIZE = 100; // observations per display page
 
 let allObservations = []; // [{ id, photoUrl, annotations }]
 let selectedIds = new Set();
+let manuallyDeselectedIds = new Set();
+let matingIds = new Set();
 let femaleIds = new Set();
 let maleIds = new Set();
 let currentPage = 1;
@@ -96,12 +98,12 @@ function renderGrid() {
 
   const isSex = annotationType === 'sex-split';
 
-  obs.forEach(({ id, photoUrl, annotations }) => {
+  obs.forEach(({ id, photoUrl, annotations, qualityGrade }) => {
     const card = document.createElement('div');
     if (isSex) {
       card.className = 'obs-card sex-mode';
     } else {
-      card.className = 'obs-card' + (selectedIds.has(id) ? ' selected' : '');
+      card.className = 'obs-card' + (selectedIds.has(id) ? ' selected' : (manuallyDeselectedIds.has(id) ? ' deselected' : ''));
     }
     card.dataset.id = id;
 
@@ -138,7 +140,7 @@ function renderGrid() {
       card.appendChild(mLabel);
     }
 
-    const badges = buildAnnotationBadges(annotations);
+    const badges = buildAnnotationBadges(annotations, qualityGrade, id);
     if (badges) card.appendChild(badges);
 
     card.addEventListener('click', e => handleCardClick(e, id, card));
@@ -223,10 +225,14 @@ function handleCardClick(e, id, card) {
 
   if (selectedIds.has(id)) {
     selectedIds.delete(id);
+    manuallyDeselectedIds.add(id);
     card.classList.remove('selected');
+    card.classList.add('deselected');
   } else {
     selectedIds.add(id);
+    manuallyDeselectedIds.delete(id);
     card.classList.add('selected');
+    card.classList.remove('deselected');
   }
 
   saveSelections();
@@ -294,8 +300,9 @@ function ctrlDeselectCard(id) {
   let changed = false;
   if (selectedIds.has(id)) {
     selectedIds.delete(id);
+    manuallyDeselectedIds.add(id);
     const card = document.querySelector(`.obs-card[data-id="${id}"]`);
-    if (card) card.classList.remove('selected');
+    if (card) { card.classList.remove('selected'); card.classList.add('deselected'); }
     saveSelections();
     changed = true;
   }
@@ -443,6 +450,18 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
             toast.textContent = `✗ Error: ${chrome.runtime.lastError.message}`;
           } else if (response && response.success) {
             toast.textContent = `✓ ${label}: obs ${id}`;
+            matingIds.add(id);
+            const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+            if (card) {
+              const existing = card.querySelector('.ann-badges');
+              if (existing) card.removeChild(existing);
+              const badges = buildAnnotationBadges(
+                allObservations.find(o => o.id === id)?.annotations,
+                allObservations.find(o => o.id === id)?.qualityGrade,
+                id
+              );
+              if (badges) card.appendChild(badges);
+            }
           } else {
             toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
           }
@@ -549,11 +568,24 @@ const EXISTING_ANNOTATION_BADGE = {
   '22_35': { text: 'Constr',  bg: '#4E342E' },
 };
 
-function buildAnnotationBadges(annotations) {
-  if (!annotations || annotations.length === 0) return null;
+function buildAnnotationBadges(annotations, qualityGrade, id) {
   const wrap = document.createElement('div');
   wrap.className = 'ann-badges';
-  for (const { attrId, valId } of annotations) {
+  if (qualityGrade === 'research') {
+    const el = document.createElement('span');
+    el.className = 'ann-badge';
+    el.textContent = 'RG';
+    el.style.background = '#2E7D32';
+    wrap.appendChild(el);
+  }
+  if (id && matingIds.has(id)) {
+    const el = document.createElement('span');
+    el.className = 'ann-badge';
+    el.textContent = '❤️ Mating';
+    el.style.background = '#880E4F';
+    wrap.appendChild(el);
+  }
+  for (const { attrId, valId } of (annotations || [])) {
     const badge = EXISTING_ANNOTATION_BADGE[`${attrId}_${valId}`];
     if (!badge) continue;
     const el = document.createElement('span');
