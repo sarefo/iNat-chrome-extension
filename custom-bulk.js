@@ -4,6 +4,9 @@ let allObservations = []; // [{ id, photoUrl, annotations }]
 let selectedIds = new Set();
 let manuallyDeselectedIds = new Set();
 let matingIds = new Set();
+let kbFocusedIds = new Set(); // IDs of all kb-focused cards
+let kbPrimaryId = null;       // card where overlay is shown (last focused)
+let vkRow = 1, vkCol = 1;
 let femaleIds = new Set();
 let maleIds = new Set();
 let currentPage = 1;
@@ -79,6 +82,26 @@ function render() {
   updateStatusInfo();
 }
 
+function updateGuideHeight() {
+  const guide = document.getElementById('nav-guide');
+  const footer = document.getElementById('grid-footer');
+  const toolbar = document.getElementById('toolbar');
+  if (!guide) return;
+  const toolbarH = toolbar ? toolbar.offsetHeight : 0;
+  // card is square, fills 1/5 of grid width (grid has 12px padding each side, 4×6px gaps)
+  const cardSize = (window.innerWidth - 24 - 24) / 5;
+  // center of first card must equal scroll-visible-center at scrollY=0
+  // scroll-visible-center = toolbarH + (window.innerHeight - toolbarH) / 2
+  const visibleCenter = toolbarH + (window.innerHeight - toolbarH) / 2;
+  const guideH = Math.max(60, visibleCenter - 12 - cardSize / 2);
+  guide.style.height = guideH + 'px';
+  // footer: allow last row to be centered too
+  if (footer) footer.style.paddingBottom = Math.max(40, (window.innerHeight - toolbarH) / 2 - cardSize / 2) + 'px';
+}
+
+updateGuideHeight();
+window.addEventListener('resize', updateGuideHeight);
+
 function renderGrid() {
   const grid = document.getElementById('obs-grid');
   const loadingMsg = document.getElementById('loading-msg');
@@ -103,7 +126,7 @@ function renderGrid() {
     if (isSex) {
       card.className = 'obs-card sex-mode';
     } else {
-      card.className = 'obs-card' + (selectedIds.has(id) ? ' selected' : (manuallyDeselectedIds.has(id) ? ' deselected' : ''));
+      card.className = 'obs-card' + (selectedIds.has(id) ? ' selected' : (manuallyDeselectedIds.has(id) ? ' deselected' : '')) + (kbFocusedIds.has(id) ? ' kb-focused' : '');
     }
     card.dataset.id = id;
 
@@ -289,11 +312,15 @@ function showCtrlOverlay(card) {
   ctrlOverlayEl.style.height = rect.height + 'px';
   ctrlOverlayCardId = card.dataset.id;
   ctrlOverlayEl.classList.add('visible');
+  updateVkHighlight();
+  updateVkCursor();
 }
 
 function hideCtrlOverlay() {
   ctrlOverlayEl.classList.remove('visible');
   ctrlOverlayCardId = null;
+  document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
+  updateVkCursor();
 }
 
 function ctrlDeselectCard(id) {
@@ -329,6 +356,7 @@ ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
     const type = zone.dataset.type;
     const id = ctrlOverlayCardId;
     hideCtrlOverlay();
+    clearKbFocus();
     if (!id) return;
     ctrlDeselectCard(id);
     const label = ANNOTATION_LABELS[type] || type;
@@ -355,14 +383,16 @@ ctrlOverlayEl.querySelector('.ctrl-zone-center').addEventListener('click', e => 
   e.stopPropagation();
   const id = ctrlOverlayCardId;
   hideCtrlOverlay();
+  clearKbFocus();
   if (!id) return;
   ctrlDeselectCard(id);
-  window.open(`https://www.inaturalist.org/observations/${id}`, '_blank');
+  chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
 });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Control' && !ctrlHeld) {
     ctrlHeld = true;
+    if (kbPrimaryId) { const c = document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`); if (c) showCtrlOverlay(c); }
   }
 });
 
@@ -382,12 +412,11 @@ window.addEventListener('blur', () => {
 
 document.addEventListener('mousemove', e => {
   if (!ctrlHeld) return;
+  if (kbPrimaryId) return; // kb mode: overlay locked to focused card
   if (ctrlOverlayEl.contains(e.target)) return;
   const card = e.target.closest('.obs-card');
   if (card) {
-    if (card.dataset.id !== ctrlOverlayCardId) {
-      showCtrlOverlay(card);
-    }
+    if (card.dataset.id !== ctrlOverlayCardId) showCtrlOverlay(card);
   } else {
     hideCtrlOverlay();
   }
@@ -422,11 +451,15 @@ function showShiftOverlay(card) {
   shiftOverlayEl.style.height = rect.height + 'px';
   shiftOverlayCardId = card.dataset.id;
   shiftOverlayEl.classList.add('visible');
+  updateVkHighlight();
+  updateVkCursor();
 }
 
 function hideShiftOverlay() {
   shiftOverlayEl.classList.remove('visible');
   shiftOverlayCardId = null;
+  document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
+  updateVkCursor();
 }
 
 shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
@@ -435,6 +468,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
     const type = zone.dataset.type;
     const id = shiftOverlayCardId;
     hideShiftOverlay();
+    clearKbFocus();
     if (!id) return;
     // Shift-mode: do NOT deselect the observation
     const label = SHIFT_ANNOTATION_LABELS[type] || type;
@@ -489,6 +523,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Shift' && !shiftHeld) {
     shiftHeld = true;
+    if (kbPrimaryId) { const c = document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`); if (c) showShiftOverlay(c); }
   }
 });
 
@@ -504,6 +539,7 @@ document.addEventListener('mousemove', e => {
     if (shiftOverlayCardId) hideShiftOverlay();
     return;
   }
+  if (kbPrimaryId) return; // kb mode: overlay locked to focused card
   if (shiftOverlayEl.contains(e.target)) return;
   const card = e.target.closest('.obs-card');
   if (card) {
@@ -844,44 +880,281 @@ document.getElementById('btn-cancel').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Keyboard shortcuts
+// Keyboard shortcuts + virtual cursor
 // ---------------------------------------------------------------------------
+
+function getRowsSorted() {
+  const cards = Array.from(document.querySelectorAll('.obs-card'));
+  const rows = new Map();
+  for (const card of cards) {
+    const top = card.offsetTop;
+    if (!rows.has(top)) rows.set(top, []);
+    rows.get(top).push(card);
+  }
+  return { rows, sortedTops: Array.from(rows.keys()).sort((a, b) => a - b) };
+}
+
+function scrollRowBy(delta) {
+  const { rows, sortedTops } = getRowsSorted();
+  if (sortedTops.length === 0) return;
+  const toolbarH = document.getElementById('toolbar')?.offsetHeight || 0;
+  const viewportCenter = window.scrollY + toolbarH + (window.innerHeight - toolbarH) / 2;
+  let centerIdx = 0, bestDist = Infinity;
+  sortedTops.forEach((top, i) => {
+    const h = rows.get(top)[0].offsetHeight;
+    const dist = Math.abs(top + h / 2 - viewportCenter);
+    if (dist < bestDist) { bestDist = dist; centerIdx = i; }
+  });
+  const targetIdx = Math.min(Math.max(centerIdx + delta, 0), sortedTops.length - 1);
+  const targetTop = sortedTops[targetIdx];
+  const targetH = rows.get(targetTop)[0].offsetHeight;
+  window.scrollTo({ top: targetTop + targetH / 2 - viewportCenter + window.scrollY, behavior: 'smooth' });
+}
+
+function getCenterRowCards() {
+  const { rows, sortedTops } = getRowsSorted();
+  if (sortedTops.length === 0) return [];
+  const toolbarH = document.getElementById('toolbar')?.offsetHeight || 0;
+  const viewportCenter = window.scrollY + toolbarH + (window.innerHeight - toolbarH) / 2;
+  let bestCards = [], bestDist = Infinity;
+  for (const [top, rowCards] of rows) {
+    const dist = Math.abs(top + rowCards[0].offsetHeight / 2 - viewportCenter);
+    if (dist < bestDist) { bestDist = dist; bestCards = rowCards; }
+  }
+  return bestCards;
+}
+
+let vkMouseX = 0, vkMouseY = 0;
+
+document.addEventListener('mousemove', e => {
+  vkMouseX = e.clientX;
+  vkMouseY = e.clientY;
+  if (kbPrimaryId) updateVkCursor();
+});
+
+function updateVkCursor() {
+  const dot = document.getElementById('vk-cursor');
+  const overlayVisible = ctrlOverlayEl.classList.contains('visible') || shiftOverlayEl.classList.contains('visible');
+  if (!kbPrimaryId || overlayVisible) {
+    dot.style.display = 'none';
+    document.body.style.cursor = '';
+    return;
+  }
+  dot.style.left = vkMouseX + 'px';
+  dot.style.top = vkMouseY + 'px';
+  dot.style.display = 'block';
+  document.body.style.cursor = 'none';
+}
+
+function updateVkHighlight() {
+  document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
+  if (!kbPrimaryId) return;
+  const overlayEl = ctrlHeld ? ctrlOverlayEl : shiftHeld ? shiftOverlayEl : null;
+  if (!overlayEl || !overlayEl.classList.contains('visible')) return;
+  const overlayCardId = ctrlHeld ? ctrlOverlayCardId : shiftOverlayCardId;
+  if (overlayCardId !== kbPrimaryId) return;
+  const zone = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
+  if (zone) zone.classList.add('vk-active');
+}
+
+function setKbFocus(card) {
+  const id = card.dataset.id;
+  if (kbFocusedIds.has(id)) {
+    // Toggle off
+    kbFocusedIds.delete(id);
+    card.classList.remove('kb-focused');
+    kbPrimaryId = kbFocusedIds.size > 0 ? [...kbFocusedIds].at(-1) : null;
+  } else {
+    kbFocusedIds.add(id);
+    card.classList.add('kb-focused');
+    kbPrimaryId = id;
+    const rect = card.getBoundingClientRect();
+    vkMouseX = rect.left + rect.width / 2;
+    vkMouseY = rect.top + rect.height / 2;
+  }
+  const primaryCard = kbPrimaryId ? document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`) : null;
+  if (primaryCard && ctrlHeld) showCtrlOverlay(primaryCard);
+  else if (primaryCard && shiftHeld) showShiftOverlay(primaryCard);
+  else if (!primaryCard) { hideCtrlOverlay(); hideShiftOverlay(); }
+  updateVkCursor();
+}
+
+function clearKbFocus() {
+  kbFocusedIds.forEach(id => {
+    const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+    if (card) card.classList.remove('kb-focused');
+  });
+  kbFocusedIds.clear();
+  kbPrimaryId = null;
+  document.getElementById('vk-cursor').style.display = 'none';
+  document.body.style.cursor = '';
+}
+
+function applyZoneToFocusedCards(zoneEl, isCtrl) {
+  const type = zoneEl.dataset.type;
+  const ids = Array.from(kbFocusedIds);
+  const count = ids.length;
+  const label = type ? ((isCtrl ? ANNOTATION_LABELS[type] : SHIFT_ANNOTATION_LABELS[type]) || type) : 'Open in tab';
+  const toast = document.getElementById('queue-toast');
+
+  if (!type) {
+    // Center zone: open each in background tab
+    ids.forEach(id => {
+      if (isCtrl) ctrlDeselectCard(id);
+      chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
+    });
+  } else if (isCtrl) {
+    toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
+    toast.classList.add('active');
+    ids.forEach(id => {
+      ctrlDeselectCard(id);
+      chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type });
+    });
+    toast.textContent = `✓ ${count}× ${label}`;
+    setTimeout(() => toast.classList.remove('active'), 3000);
+  } else if (type === 'mating') {
+    toast.textContent = `⏳ Tagging ${count}× mating…`;
+    toast.classList.add('active');
+    ids.forEach(id => {
+      chrome.runtime.sendMessage({ action: 'postObservationField', obsId: id, fieldId: 6637, value: 'yes' }, response => {
+        if (response?.success) {
+          matingIds.add(id);
+          const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+          if (card) {
+            const existing = card.querySelector('.ann-badges');
+            if (existing) card.removeChild(existing);
+            const badges = buildAnnotationBadges(
+              allObservations.find(o => o.id === id)?.annotations,
+              allObservations.find(o => o.id === id)?.qualityGrade, id
+            );
+            if (badges) card.appendChild(badges);
+          }
+        }
+      });
+    });
+    toast.textContent = `✓ ${count}× ❤️ Mating`;
+    setTimeout(() => toast.classList.remove('active'), 3000);
+  } else {
+    toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
+    toast.classList.add('active');
+    ids.forEach(id => chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type }));
+    toast.textContent = `✓ ${count}× ${label}`;
+    setTimeout(() => toast.classList.remove('active'), 3000);
+  }
+
+  if (isCtrl) hideCtrlOverlay(); else hideShiftOverlay();
+  clearKbFocus();
+}
+
+// Sync real mouse hover over overlay zones with vkRow/vkCol
+[ctrlOverlayEl, shiftOverlayEl].forEach(overlayEl => {
+  Array.from(overlayEl.children).forEach((zone, idx) => {
+    zone.addEventListener('mouseenter', () => {
+      vkRow = Math.floor(idx / 3);
+      vkCol = idx % 3;
+      updateVkHighlight();
+    });
+  });
+});
 
 document.addEventListener('keydown', (e) => {
   // Ignore shortcuts if user is typing in an input field
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  switch (e.key.toLowerCase()) {
-    case 'n':
-      // Next page
-      if (currentPage < totalDisplayPages()) {
-        document.getElementById('btn-next').click();
+  const overlayOpen = (ctrlHeld && ctrlOverlayEl.classList.contains('visible')) ||
+                      (shiftHeld && shiftOverlayEl.classList.contains('visible'));
+
+  switch (e.key) {
+    case 'ArrowLeft':
+      if (overlayOpen && kbPrimaryId) {
+        vkCol = Math.max(0, vkCol - 1);
+        updateVkHighlight();
+        e.preventDefault();
       }
       break;
-    case 'p':
-      document.getElementById('btn-select-page').click();
-      break;
-    case 'a':
-      if (annotationType !== 'sex-split') {
-        document.getElementById('btn-select-all').click();
+    case 'ArrowRight':
+      if (overlayOpen && kbPrimaryId) {
+        vkCol = Math.min(2, vkCol + 1);
+        updateVkHighlight();
+        e.preventDefault();
       }
       break;
-    case 'x':
-      if (annotationType === 'sex-split') {
-        if (femaleIds.size > 0 || maleIds.size > 0) {
-          addToQueue().then(() => window.close());
+    case 'ArrowUp':
+      if (overlayOpen && kbPrimaryId) {
+        vkRow = Math.max(0, vkRow - 1);
+        updateVkHighlight();
+        e.preventDefault();
+      }
+      break;
+    case 'ArrowDown':
+      if (overlayOpen && kbPrimaryId) {
+        vkRow = Math.min(2, vkRow + 1);
+        updateVkHighlight();
+        e.preventDefault();
+      }
+      break;
+    case 'Enter': {
+      if (overlayOpen && kbPrimaryId) {
+        const overlayEl = ctrlHeld ? ctrlOverlayEl : shiftOverlayEl;
+        const zone = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
+        if (zone) applyZoneToFocusedCards(zone, ctrlHeld);
+        e.preventDefault();
+      } else if (!ctrlHeld && !shiftHeld) {
+        if (annotationType === 'sex-split') {
+          if (femaleIds.size > 0 || maleIds.size > 0) addToQueue().then(() => window.close());
+        } else if (selectedIds.size > 0) {
+          tryAddToQueue();
         }
-      } else if (selectedIds.size > 0) {
-        tryAddToQueue();
       }
       break;
-    case 'u': {
-      const firstCard = document.querySelector('.obs-card');
-      if (firstCard) {
-        const rowHeight = firstCard.offsetHeight + 6;
-        window.scrollBy({ top: rowHeight, behavior: 'smooth' });
-      }
+    }
+    case 'Escape':
+      clearKbFocus();
+      hideCtrlOverlay();
+      hideShiftOverlay();
       break;
+    default: {
+      // Zone shortcuts: gfq=top row, rtd=middle row, ,.j=bottom row (neo2 positions)
+      const ZONE_KEYS = { 'g': [0,0], 'f': [0,1], 'q': [0,2], 'r': [1,0], 'd': [1,2], ',': [2,0], '.': [2,1], 'j': [2,2] };
+      const zone = ZONE_KEYS[e.key.toLowerCase() === e.key ? e.key : e.key.toLowerCase()];
+      if (zone && kbPrimaryId && (ctrlHeld || shiftHeld)) {
+        const [row, col] = zone;
+        vkRow = row; vkCol = col;
+        const overlayEl = ctrlHeld ? ctrlOverlayEl : shiftOverlayEl;
+        const zoneEl = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
+        if (zoneEl) applyZoneToFocusedCards(zoneEl, ctrlHeld);
+        e.preventDefault();
+        break;
+      }
+      switch (e.key.toLowerCase()) {
+        case 'n':
+          if (currentPage < totalDisplayPages()) document.getElementById('btn-next').click();
+          break;
+        case 'p':
+          document.getElementById('btn-select-page').click();
+          break;
+        case 'a':
+          if (annotationType !== 'sex-split') document.getElementById('btn-select-all').click();
+          break;
+        case 'u': {
+          scrollRowBy(+1);
+          break;
+        }
+        case 'ü': {
+          scrollRowBy(-1);
+          break;
+        }
+        case '1': case '2': case '3': case '4': case '5': {
+          const idx = ['1', '2', '3', '4', '5'].indexOf(e.key);
+          const centerCards = getCenterRowCards();
+          if (idx < centerCards.length) {
+            setKbFocus(centerCards[idx]);
+            vkRow = 1; vkCol = 1;
+            updateVkHighlight();
+          }
+          break;
+        }
+      }
     }
   }
 });

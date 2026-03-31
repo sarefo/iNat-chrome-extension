@@ -93,6 +93,155 @@
       gap: 6px;
       padding: 12px;
     }
+    #grid-footer {
+      padding: 24px 12px 40px;
+      color: #666;
+      font-size: 15px;
+      text-align: center;
+      letter-spacing: 0.03em;
+    }
+    #grid-footer kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 7px;
+      background: #2d2d2d;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: monospace;
+      color: #bbb;
+    }
+
+    /* ── Nav guide ── */
+    #nav-guide {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px 12px 14px;
+      box-sizing: border-box;
+    }
+    .guide-bottom {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .guide-panel { flex: 1; min-width: 0; }
+    .guide-panel h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #888;
+    }
+    .guide-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .guide-keys { display: flex; gap: 4px; flex-shrink: 0; }
+    .guide-desc { color: #999; font-size: 13px; }
+    .guide-panel kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      background: #2d2d2d;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: monospace;
+      color: #ddd;
+      line-height: 1;
+    }
+
+    /* overlay mini-grids */
+    .guide-overlay-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+    }
+    .go-cell {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 7px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #fff;
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .go-cell kbd {
+      background: rgba(255,255,255,0.18) !important;
+      border-color: rgba(255,255,255,0.3) !important;
+      color: #fff !important;
+      font-size: 11px !important;
+      min-width: 18px !important;
+      height: 18px !important;
+      padding: 0 4px !important;
+      flex-shrink: 0;
+    }
+    /* ctrl overlay colors */
+    .go-juv-alive    { background: rgba(76,175,80,0.75); }
+    .go-alive        { background: rgba(0,150,136,0.75); }
+    .go-adult-alive  { background: rgba(33,150,243,0.75); }
+    .go-juv-cannot   { background: rgba(205,220,57,0.75); color: #222; }
+    .go-juv-cannot kbd { color: #222 !important; }
+    .go-center       { background: rgba(50,50,50,0.9); }
+    .go-adult-cannot { background: rgba(156,39,176,0.75); }
+    .go-juv-dead     { background: rgba(255,152,0,0.75); color: #222; }
+    .go-juv-dead kbd { color: #222 !important; }
+    .go-dead         { background: rgba(121,85,72,0.75); }
+    .go-adult-dead   { background: rgba(244,67,54,0.75); }
+    /* shift overlay colors */
+    .go-female       { background: rgba(194,24,91,0.75); }
+    .go-mating       { background: rgba(106,27,154,0.75); }
+    .go-male         { background: rgba(21,101,192,0.75); }
+    .go-egg          { background: rgba(245,127,23,0.75); color: #222; }
+    .go-egg kbd      { color: #222 !important; }
+    .go-molt         { background: rgba(109,76,65,0.75); }
+    .go-pupa         { background: rgba(85,139,47,0.75); }
+    .go-construction { background: rgba(78,52,46,0.75); }
+    .go-gall         { background: rgba(46,125,50,0.75); }
+    .go-track        { background: rgba(55,71,79,0.75); }
+
+    /* virtual keyboard */
+    .guide-top {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .guide-keyboard { flex: 0 0 auto; width: 46%; }
+    .guide-legend {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 16px;
+      align-content: start;
+    }
+    .vkb-row { display: flex; gap: 3px; margin-bottom: 3px; }
+    .vkb-row kbd {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: monospace;
+      border: 1px solid #555;
+      line-height: 1;
+    }
+    .vk-num    { background: rgba(232,118,26,0.5);  color: #ffd; border-color: #E8761A; }
+    .vk-scroll { background: rgba(41,182,246,0.35); color: #cef; border-color: #29B6F6; }
+    .vk-zone   { background: rgba(121,134,203,0.35); color: #cdf; border-color: #7986CB; }
+    .vk-nav    { background: rgba(77,182,172,0.35); color: #cfc; border-color: #4DB6AC; }
+    .vk-dim    { background: #242424; color: #555; border-color: #3a3a3a; }
 
     .obs-card {
       border: 3px solid transparent;
@@ -112,6 +261,32 @@
     .obs-card.deselected img {
       opacity: 0.6;
       filter: grayscale(100%);
+    }
+    .obs-card.kb-focused {
+      border-color: #FFD54F;
+      box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.5), 0 0 20px rgba(255, 213, 79, 0.7);
+    }
+    #vk-cursor {
+      position: fixed;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #333;
+      box-shadow: 0 0 6px rgba(0,0,0,0.6);
+      pointer-events: none;
+      z-index: 600;
+      transform: translate(-50%, -50%);
+      display: none;
+    }
+    .ctrl-zone.vk-active,
+    .ctrl-zone-center.vk-active,
+    .shift-zone.vk-active {
+      filter: brightness(1.7) !important;
+      outline: 3px solid white;
+      outline-offset: -3px;
+      position: relative;
+      z-index: 1;
     }
     .obs-card img {
       width: 100%;
@@ -410,8 +585,78 @@
     <button id="btn-help"        class="toolbar-btn" style="background:#607D8B;">? Help</button>
   </div>
 
+  <div id="nav-guide">
+
+    <!-- Top: keyboard (half-width) + legend (two columns) -->
+    <div class="guide-top">
+      <div class="guide-keyboard">
+        <h3>Neo2</h3>
+        <div class="vkb-row">
+          <kbd class="vk-num">1</kbd><kbd class="vk-num">2</kbd><kbd class="vk-num">3</kbd><kbd class="vk-num">4</kbd><kbd class="vk-num">5</kbd><kbd class="vk-dim">6</kbd><kbd class="vk-dim">7</kbd><kbd class="vk-dim">8</kbd><kbd class="vk-dim">9</kbd><kbd class="vk-dim">0</kbd>
+        </div>
+        <div class="vkb-row">
+          <kbd class="vk-dim">x</kbd><kbd class="vk-dim">v</kbd><kbd class="vk-dim">l</kbd><kbd class="vk-dim">c</kbd><kbd class="vk-dim">w</kbd><kbd class="vk-dim">k</kbd><kbd class="vk-dim">h</kbd><kbd class="vk-zone">g</kbd><kbd class="vk-zone">f</kbd><kbd class="vk-zone">q</kbd><kbd class="vk-dim">ß</kbd><kbd class="vk-dim">'</kbd>
+        </div>
+        <div class="vkb-row">
+          <kbd class="vk-scroll">u</kbd><kbd class="vk-dim">i</kbd><kbd class="vk-nav">a</kbd><kbd class="vk-dim">e</kbd><kbd class="vk-dim">o</kbd><kbd class="vk-dim">s</kbd><kbd class="vk-nav">n</kbd><kbd class="vk-zone">r</kbd><kbd class="vk-dim">t</kbd><kbd class="vk-zone">d</kbd><kbd class="vk-dim">y</kbd>
+        </div>
+        <div class="vkb-row">
+          <kbd class="vk-scroll">ü</kbd><kbd class="vk-dim">ö</kbd><kbd class="vk-dim">ä</kbd><kbd class="vk-nav">p</kbd><kbd class="vk-dim">z</kbd><kbd class="vk-dim">b</kbd><kbd class="vk-dim">m</kbd><kbd class="vk-zone">,</kbd><kbd class="vk-zone">.</kbd><kbd class="vk-zone">j</kbd>
+        </div>
+      </div>
+      <div class="guide-legend">
+        <h3 style="grid-column:1/-1;margin:0 0 6px">Keys</h3>
+        <div class="guide-row"><span class="guide-keys"><kbd>1</kbd>–<kbd>5</kbd></span><span class="guide-desc">focus obs (multi)</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Ctrl</kbd></span><span class="guide-desc">age / alive overlay</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>u</kbd><kbd>ü</kbd></span><span class="guide-desc">scroll next / prev row</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Shift</kbd></span><span class="guide-desc">sex / evidence overlay</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>n</kbd></span><span class="guide-desc">next page</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>g…j</kbd></span><span class="guide-desc">activate zone directly</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>p</kbd></span><span class="guide-desc">select / deselect page</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>↑↓←→</kbd></span><span class="guide-desc">move zone cursor</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>a</kbd></span><span class="guide-desc">select / deselect all</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>↵</kbd></span><span class="guide-desc">activate zone / queue</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Esc</kbd></span><span class="guide-desc">clear focus</span></div>
+      </div>
+    </div>
+
+    <!-- Bottom: overlay maps -->
+    <div class="guide-bottom">
+      <div class="guide-panel">
+        <h3>Ctrl — age &amp; alive</h3>
+        <div class="guide-overlay-grid">
+          <div class="go-cell go-juv-alive">   <kbd>g</kbd> Juv Alive</div>
+          <div class="go-cell go-alive">        <kbd>f</kbd> Alive</div>
+          <div class="go-cell go-adult-alive">  <kbd>q</kbd> Adult Alive</div>
+          <div class="go-cell go-juv-cannot">   <kbd>r</kbd> Juv ?</div>
+          <div class="go-cell go-center">       <kbd>↵</kbd> ↗ tab</div>
+          <div class="go-cell go-adult-cannot"> <kbd>d</kbd> Adult ?</div>
+          <div class="go-cell go-juv-dead">     <kbd>,</kbd> Juv Dead</div>
+          <div class="go-cell go-dead">         <kbd>.</kbd> Dead</div>
+          <div class="go-cell go-adult-dead">   <kbd>j</kbd> Adult Dead</div>
+        </div>
+      </div>
+      <div class="guide-panel">
+        <h3>Shift — sex &amp; evidence</h3>
+        <div class="guide-overlay-grid">
+          <div class="go-cell go-female">       <kbd>g</kbd> ♀ Female</div>
+          <div class="go-cell go-mating">       <kbd>f</kbd> ❤️ Mating</div>
+          <div class="go-cell go-male">         <kbd>q</kbd> ♂ Male</div>
+          <div class="go-cell go-egg">          <kbd>r</kbd> 🥚 Egg</div>
+          <div class="go-cell go-molt">         <kbd>↵</kbd> 🪲 Molt</div>
+          <div class="go-cell go-pupa">         <kbd>d</kbd> 🐛 Pupa</div>
+          <div class="go-cell go-construction"> <kbd>,</kbd> 🏗 Constr</div>
+          <div class="go-cell go-gall">         <kbd>.</kbd> 🌿 Gall</div>
+          <div class="go-cell go-track">        <kbd>j</kbd> 👣 Track</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
   <div id="obs-grid"></div>
   <div id="loading-msg">Loading observations from iNaturalist API...</div>
+  <div id="grid-footer"><kbd>n</kbd> next page &nbsp;•&nbsp; <kbd>↵</kbd> add to queue &amp; close</div>
 
   <div id="queue-toast">Saved to queue!</div>
 
@@ -488,6 +733,7 @@
     <div class="ctrl-zone ctrl-zone-adult-dead"   data-type="adult-dead"       title="Adult — Dead">Adult<br>Dead</div>
   </div>
 
+  <div id="vk-cursor"></div>
   <script src="custom-bulk.js"></script>
 </body>
 </html>
