@@ -2,6 +2,8 @@ import { processBulkObservationsViaApi, annotateSingleObsViaApi, quickAnnotateSi
 import { processQueuedObservations } from './queue-manager.js';
 import { startCustomBulkFetch, fetchMoreObservations } from './obs-fetcher.js';
 
+let queueProcessingActive = false;
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'quickAnnotateObs') {
     quickAnnotateSingleObs(request.obsId, request.mode)
@@ -53,9 +55,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'processQueues') {
+    if (queueProcessingActive) {
+      sendResponse({ success: false, error: 'Queue processing already in progress' });
+      return true;
+    }
+    queueProcessingActive = true;
     processQueuedObservations(request.queueIds, request.jwt)
       .then(r => sendResponse({ success: true, ...r }))
-      .catch(e => sendResponse({ success: false, error: e.message }));
+      .catch(e => sendResponse({ success: false, error: e.message }))
+      .finally(() => { queueProcessingActive = false; });
     return true;
   }
 
