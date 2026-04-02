@@ -159,6 +159,11 @@ document.addEventListener('DOMContentLoaded', function() {
   let isRunning = false;
   let pendingQueueIds = new Set();
   let cancelCurrentRequested = false;
+  let activeButtonType = null;  // 'all' | 'selected' — persisted across popup reopens
+  let lastProgressTime = 0;
+  let lastTotalProcessed = 0;
+  let stallCheckInterval = null;
+  let isStalled = false;
 
   function saveSelectedQueueIds() {
     chrome.storage.local.set({ innat_selected_queue_ids: Array.from(selectedQueueIds) });
@@ -190,9 +195,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Restore persisted selection on open
-  chrome.storage.local.get(['innat_selected_queue_ids'], result => {
+  // Restore persisted selection and active button on open
+  chrome.storage.local.get(['innat_selected_queue_ids', 'innat_queue_active_button'], result => {
     (result.innat_selected_queue_ids || []).forEach(id => selectedQueueIds.add(id));
+    activeButtonType = result.innat_queue_active_button || null;
     loadQueues();
   });
 
@@ -200,6 +206,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (area !== 'local') return;
     if (changes.innat_pending_queue_ids) {
       pendingQueueIds = new Set(changes.innat_pending_queue_ids.newValue || []);
+    }
+    if (changes.innat_queues) {
+      // Track progress to detect stalls
+      const queues = changes.innat_queues.newValue || [];
+      const totalProcessed = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
+      if (totalProcessed > lastTotalProcessed) {
+        lastTotalProcessed = totalProcessed;
+        lastProgressTime = Date.now();
+        if (isStalled) { isStalled = false; updateRunningButtonState(); }
+      }
     }
     if (changes.innat_queues || changes.innat_current_collection || changes.innat_pending_queue_ids) {
       loadQueues();
@@ -226,7 +242,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     queueSection.style.display = 'block';
     // Sync running state from queue data (handles popup reopen mid-run)
-    if (queues.some(q => q.status === 'processing')) isRunning = true;
+    if (queues.some(q => q.status === 'processing')) {
+      if (!isRunning) { isRunning = true; startStallCheck(); }
+    }
     const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
     const totalDone = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
     queueBadge.textContent = `${totalDone}/${totalObs}`;
@@ -304,6 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     updateProcessQueuesButton(queues);
+    updateRunningButtonState();
   }
 
   function updateProcessQueuesButton(queues) {
@@ -343,13 +362,17 @@ document.addEventListener('DOMContentLoaded', function() {
   function _processQueues(ids, activeButton) {
     if (ids.length === 0) return;
 
+    activeButtonType = activeButton === processAllButton ? 'all' : 'selected';
+    chrome.storage.local.set({ innat_queue_active_button: activeButtonType });
+
     statusDiv.textContent = 'Processing queues...';
     statusDiv.style.color = '#FF9800';
     processAllButton.disabled = true;
     processSelectedButton.disabled = true;
-    activeButton.classList.add('running');
     isRunning = true;
     pendingQueueIds = new Set(ids);
+    lastTotalProcessed = 0;
+    startStallCheck();
 
     // Get JWT from the current tab before handing off to background
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
@@ -359,9 +382,11 @@ document.addEventListener('DOMContentLoaded', function() {
           isRunning = false;
           pendingQueueIds.clear();
           cancelCurrentRequested = false;
+          stopStallCheck();
+          activeButtonType = null;
+          chrome.storage.local.remove('innat_queue_active_button');
           processAllButton.disabled = false;
           processSelectedButton.disabled = selectedQueueIds.size === 0;
-          activeButton.classList.remove('running');
           if (chrome.runtime.lastError || !response) {
             statusDiv.textContent = 'Error starting queue processing';
             statusDiv.style.color = 'red';
@@ -378,6 +403,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
     });
+  }
+
+  function startStallCheck() {
+    lastProgressTime = Date.now();
+    clearInterval(stallCheckInterval);
+    stallCheckInterval = setInterval(() => {
+      if (!isRunning) { stopStallCheck(); return; }
+      const nowStalled = Date.now() - lastProgressTime > 30000;
+      if (nowStalled !== isStalled) {
+        isStalled = nowStalled;
+        updateRunningButtonState();
+      }
+    }, 5000);
+    updateRunningButtonState();
+  }
+
+  function stopStallCheck() {
+    clearInterval(stallCheckInterval);
+    stallCheckInterval = null;
+    isStalled = false;
+    processAllButton.classList.remove('running', 'stalled');
+    processSelectedButton.classList.remove('running', 'stalled');
+  }
+
+  function updateRunningButtonState() {
+    processAllButton.classList.remove('running', 'stalled');
+    processSelectedButton.classList.remove('running', 'stalled');
+    if (!isRunning) return;
+    const cls = isStalled ? 'stalled' : 'running';
+    const btn = activeButtonType === 'selected' ? processSelectedButton : processAllButton;
+    btn.classList.add(cls);
   }
 
   usernameDisplay.addEventListener('click', function() {

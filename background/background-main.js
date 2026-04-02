@@ -3,6 +3,7 @@ import { processQueuedObservations } from './queue-manager.js';
 import { startCustomBulkFetch, fetchMoreObservations } from './obs-fetcher.js';
 
 let queueProcessingActive = false;
+let queueGen = 0;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'quickAnnotateObs') {
@@ -55,15 +56,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'processQueues') {
-    if (queueProcessingActive) {
-      sendResponse({ success: false, error: 'Queue processing already in progress' });
-      return true;
-    }
+    // Allow restart even if a previous run is active (e.g. stalled due to bad network).
+    // The generation counter prevents an old run's finally() from clearing the new run's flag.
+    const gen = ++queueGen;
     queueProcessingActive = true;
     processQueuedObservations(request.queueIds, request.jwt)
       .then(r => sendResponse({ success: true, ...r }))
       .catch(e => sendResponse({ success: false, error: e.message }))
-      .finally(() => { queueProcessingActive = false; });
+      .finally(() => { if (queueGen === gen) queueProcessingActive = false; });
     return true;
   }
 
