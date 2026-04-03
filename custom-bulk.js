@@ -241,6 +241,11 @@ function preloadAdjacentPages() {
 // ---------------------------------------------------------------------------
 
 function handleCardClick(e, id, card) {
+  if (e.ctrlKey) {
+    ctrlDeselectCard(id);
+    chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
+    return;
+  }
   if (annotationType === 'sex-split') {
     handleSexCardClick(e, id, card);
     return;
@@ -300,7 +305,6 @@ function handleSexCardClick(e, id, card) {
 // Ctrl-hover quick annotation overlay
 // ---------------------------------------------------------------------------
 
-let ctrlHeld = false;
 let ctrlOverlayCardId = null;
 const ctrlOverlayEl = document.getElementById('ctrl-overlay');
 
@@ -313,14 +317,12 @@ function showCtrlOverlay(card) {
   ctrlOverlayCardId = card.dataset.id;
   ctrlOverlayEl.classList.add('visible');
   updateVkHighlight();
-  updateVkCursor();
 }
 
 function hideCtrlOverlay() {
   ctrlOverlayEl.classList.remove('visible');
   ctrlOverlayCardId = null;
   document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
-  updateVkCursor();
 }
 
 function ctrlDeselectCard(id) {
@@ -379,46 +381,55 @@ ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
   });
 });
 
-ctrlOverlayEl.querySelector('.ctrl-zone-center').addEventListener('click', e => {
-  e.stopPropagation();
-  const id = ctrlOverlayCardId;
-  hideCtrlOverlay();
-  clearKbFocus();
-  if (!id) return;
-  ctrlDeselectCard(id);
-  chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
+// Track which card the mouse is currently over (for Ctrl tap in mouse mode)
+let mouseOverCardId = null;
+document.addEventListener('mouseover', e => {
+  const card = e.target.closest('.obs-card');
+  mouseOverCardId = card ? card.dataset.id : null;
 });
 
+// Ctrl tracking: distinguish tap (toggle overlay) from combo (Ctrl+Enter, Ctrl+Click)
+let ctrlHeld = false;
+let ctrlComboUsed = false;
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Control' && !ctrlHeld) {
+  if (e.key === 'Control') {
     ctrlHeld = true;
-    if (kbPrimaryId) { const c = document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`); if (c) showCtrlOverlay(c); }
+    ctrlComboUsed = false;
+  } else if (ctrlHeld) {
+    ctrlComboUsed = true; // another key pressed while Ctrl held → not a tap
   }
 });
 
+document.addEventListener('mousedown', e => {
+  if (ctrlHeld) ctrlComboUsed = true; // Ctrl+click → not a tap
+});
+
+// Ctrl keyup: tap-toggle overlay only when no combo key was used
 document.addEventListener('keyup', e => {
   if (e.key === 'Control') {
+    if (!ctrlComboUsed && !shiftHeld) {
+      if (ctrlOverlayEl.classList.contains('visible')) {
+        hideCtrlOverlay();
+      } else {
+        const targetId = kbPrimaryId || mouseOverCardId;
+        if (targetId) {
+          const c = document.querySelector(`.obs-card[data-id="${targetId}"]`);
+          if (c) showCtrlOverlay(c);
+        }
+      }
+    }
     ctrlHeld = false;
-    hideCtrlOverlay();
+    ctrlComboUsed = false;
   }
 });
 
 window.addEventListener('blur', () => {
-  ctrlHeld = false;
-  hideCtrlOverlay();
   shiftHeld = false;
   hideShiftOverlay();
-});
-
-document.addEventListener('mousemove', e => {
-  if (!ctrlHeld) return;
-  if (kbPrimaryId) return; // kb mode: overlay locked to focused card
-  if (ctrlOverlayEl.contains(e.target)) return;
-  const card = e.target.closest('.obs-card');
-  if (card) {
-    if (card.dataset.id !== ctrlOverlayCardId) showCtrlOverlay(card);
-  } else {
-    hideCtrlOverlay();
+  if (kbPrimaryId) {
+    const c = document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`);
+    if (c) showCtrlOverlay(c);
   }
 });
 
@@ -452,14 +463,12 @@ function showShiftOverlay(card) {
   shiftOverlayCardId = card.dataset.id;
   shiftOverlayEl.classList.add('visible');
   updateVkHighlight();
-  updateVkCursor();
 }
 
 function hideShiftOverlay() {
   shiftOverlayEl.classList.remove('visible');
   shiftOverlayCardId = null;
   document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
-  updateVkCursor();
 }
 
 shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
@@ -523,14 +532,25 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Shift' && !shiftHeld) {
     shiftHeld = true;
-    if (kbPrimaryId) { const c = document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`); if (c) showShiftOverlay(c); }
+    const targetId = kbPrimaryId || ctrlOverlayCardId;
+    if (targetId) {
+      hideCtrlOverlay();
+      const c = document.querySelector(`.obs-card[data-id="${targetId}"]`);
+      if (c) showShiftOverlay(c);
+    }
   }
 });
 
 document.addEventListener('keyup', e => {
   if (e.key === 'Shift') {
+    const prevCard = shiftOverlayCardId;
     shiftHeld = false;
     hideShiftOverlay();
+    const targetId = kbPrimaryId || prevCard;
+    if (targetId) {
+      const c = document.querySelector(`.obs-card[data-id="${targetId}"]`);
+      if (c) showCtrlOverlay(c);
+    }
   }
 });
 
@@ -644,6 +664,7 @@ const ANNOTATION_LABELS = {
   'dead-only':               '💀 Dead (no age)',
   'molt':                    '💀 Molt',
   'age-unknown':             '❓ Age Unknown',
+  'cannot-only':             '❓ Cannot Be Determined',
   'plant-flowers':           '🌼 Flowers',
   'plant-fruits':            '🍇 Fruits',
   'plant-no-flowers-fruits': '❌ No Flowers/Fruits',
@@ -924,34 +945,12 @@ function getCenterRowCards() {
   return bestCards;
 }
 
-let vkMouseX = 0, vkMouseY = 0;
-
-document.addEventListener('mousemove', e => {
-  vkMouseX = e.clientX;
-  vkMouseY = e.clientY;
-  if (kbPrimaryId) updateVkCursor();
-});
-
-function updateVkCursor() {
-  const dot = document.getElementById('vk-cursor');
-  const overlayVisible = ctrlOverlayEl.classList.contains('visible') || shiftOverlayEl.classList.contains('visible');
-  if (!kbPrimaryId || overlayVisible) {
-    dot.style.display = 'none';
-    document.body.style.cursor = '';
-    return;
-  }
-  dot.style.left = vkMouseX + 'px';
-  dot.style.top = vkMouseY + 'px';
-  dot.style.display = 'block';
-  document.body.style.cursor = 'none';
-}
-
 function updateVkHighlight() {
   document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
   if (!kbPrimaryId) return;
-  const overlayEl = ctrlHeld ? ctrlOverlayEl : shiftHeld ? shiftOverlayEl : null;
-  if (!overlayEl || !overlayEl.classList.contains('visible')) return;
-  const overlayCardId = ctrlHeld ? ctrlOverlayCardId : shiftOverlayCardId;
+  const overlayEl = shiftHeld ? shiftOverlayEl : ctrlOverlayEl;
+  if (!overlayEl.classList.contains('visible')) return;
+  const overlayCardId = shiftHeld ? shiftOverlayCardId : ctrlOverlayCardId;
   if (overlayCardId !== kbPrimaryId) return;
   const zone = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
   if (zone) zone.classList.add('vk-active');
@@ -973,10 +972,9 @@ function setKbFocus(card) {
     vkMouseY = rect.top + rect.height / 2;
   }
   const primaryCard = kbPrimaryId ? document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`) : null;
-  if (primaryCard && ctrlHeld) showCtrlOverlay(primaryCard);
-  else if (primaryCard && shiftHeld) showShiftOverlay(primaryCard);
-  else if (!primaryCard) { hideCtrlOverlay(); hideShiftOverlay(); }
-  updateVkCursor();
+  if (primaryCard && shiftHeld) { hideCtrlOverlay(); showShiftOverlay(primaryCard); }
+  else if (primaryCard) { hideShiftOverlay(); showCtrlOverlay(primaryCard); }
+  else { hideCtrlOverlay(); hideShiftOverlay(); }
 }
 
 function clearKbFocus() {
@@ -986,24 +984,16 @@ function clearKbFocus() {
   });
   kbFocusedIds.clear();
   kbPrimaryId = null;
-  document.getElementById('vk-cursor').style.display = 'none';
-  document.body.style.cursor = '';
 }
 
 function applyZoneToFocusedCards(zoneEl, isCtrl) {
   const type = zoneEl.dataset.type;
   const ids = Array.from(kbFocusedIds);
   const count = ids.length;
-  const label = type ? ((isCtrl ? ANNOTATION_LABELS[type] : SHIFT_ANNOTATION_LABELS[type]) || type) : 'Open in tab';
+  const label = (isCtrl ? ANNOTATION_LABELS[type] : SHIFT_ANNOTATION_LABELS[type]) || type;
   const toast = document.getElementById('queue-toast');
 
-  if (!type) {
-    // Center zone: open each in background tab
-    ids.forEach(id => {
-      if (isCtrl) ctrlDeselectCard(id);
-      chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
-    });
-  } else if (isCtrl) {
+  if (isCtrl) {
     toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
     toast.classList.add('active');
     ids.forEach(id => {
@@ -1061,45 +1051,52 @@ document.addEventListener('keydown', (e) => {
   // Ignore shortcuts if user is typing in an input field
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  const overlayOpen = (ctrlHeld && ctrlOverlayEl.classList.contains('visible')) ||
-                      (shiftHeld && shiftOverlayEl.classList.contains('visible'));
-
   switch (e.key) {
     case 'ArrowLeft':
-      if (overlayOpen && kbPrimaryId) {
+      if (kbPrimaryId) {
         vkCol = Math.max(0, vkCol - 1);
         updateVkHighlight();
         e.preventDefault();
       }
       break;
     case 'ArrowRight':
-      if (overlayOpen && kbPrimaryId) {
+      if (kbPrimaryId) {
         vkCol = Math.min(2, vkCol + 1);
         updateVkHighlight();
         e.preventDefault();
       }
       break;
     case 'ArrowUp':
-      if (overlayOpen && kbPrimaryId) {
+      if (kbPrimaryId) {
         vkRow = Math.max(0, vkRow - 1);
         updateVkHighlight();
         e.preventDefault();
       }
       break;
     case 'ArrowDown':
-      if (overlayOpen && kbPrimaryId) {
+      if (kbPrimaryId) {
         vkRow = Math.min(2, vkRow + 1);
         updateVkHighlight();
         e.preventDefault();
       }
       break;
     case 'Enter': {
-      if (overlayOpen && kbPrimaryId) {
-        const overlayEl = ctrlHeld ? ctrlOverlayEl : shiftOverlayEl;
-        const zone = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
-        if (zone) applyZoneToFocusedCards(zone, ctrlHeld);
+      if (ctrlHeld) {
+        // Ctrl+Enter: deselect and open the overlay card in a new tab
+        const targetId = ctrlOverlayCardId || kbPrimaryId;
+        if (targetId) {
+          ctrlDeselectCard(targetId);
+          chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${targetId}`, active: false });
+          hideCtrlOverlay();
+          clearKbFocus();
+        }
         e.preventDefault();
-      } else if (!ctrlHeld && !shiftHeld) {
+      } else if (kbPrimaryId) {
+        const overlayEl = shiftHeld ? shiftOverlayEl : ctrlOverlayEl;
+        const zone = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
+        if (zone) applyZoneToFocusedCards(zone, !shiftHeld);
+        e.preventDefault();
+      } else if (!shiftHeld) {
         if (annotationType === 'sex-split') {
           if (femaleIds.size > 0 || maleIds.size > 0) addToQueue().then(() => window.close());
         } else if (selectedIds.size > 0) {
@@ -1114,21 +1111,29 @@ document.addEventListener('keydown', (e) => {
       hideShiftOverlay();
       break;
     default: {
-      // Zone shortcuts: gfq=top row, rtd=middle row, ,.j=bottom row (neo2 positions)
-      const ZONE_KEYS = { 'g': [0,0], 'f': [0,1], 'q': [0,2], 'r': [1,0], 'd': [1,2], ',': [2,0], '.': [2,1], 'j': [2,2] };
+      // Zone shortcuts: khg=top row, snr=middle row, bm,=bottom row (neo2 positions)
+      // '–' is shift+, on neo2 layout, maps to same zone as ','
+      const ZONE_KEYS = { 'k': [0,0], 'h': [0,1], 'g': [0,2], 's': [1,0], 'n': [1,1], 'r': [1,2], 'b': [2,0], 'm': [2,1], ',': [2,2], '–': [2,2] };
       const zone = ZONE_KEYS[e.key.toLowerCase() === e.key ? e.key : e.key.toLowerCase()];
-      if (zone && kbPrimaryId && (ctrlHeld || shiftHeld)) {
+      if (zone && kbPrimaryId) {
         const [row, col] = zone;
         vkRow = row; vkCol = col;
-        const overlayEl = ctrlHeld ? ctrlOverlayEl : shiftOverlayEl;
+        const overlayEl = shiftHeld ? shiftOverlayEl : ctrlOverlayEl;
         const zoneEl = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
-        if (zoneEl) applyZoneToFocusedCards(zoneEl, ctrlHeld);
+        if (zoneEl) applyZoneToFocusedCards(zoneEl, !shiftHeld);
         e.preventDefault();
         break;
       }
       switch (e.key.toLowerCase()) {
-        case 'n':
+        case 'x':
+          if (kbFocusedIds.size > 0) {
+            [...kbFocusedIds].forEach(id => ctrlDeselectCard(id));
+            clearKbFocus();
+          }
+          break;
+        case ' ':
           if (currentPage < totalDisplayPages()) document.getElementById('btn-next').click();
+          e.preventDefault();
           break;
         case 'p':
           document.getElementById('btn-select-page').click();

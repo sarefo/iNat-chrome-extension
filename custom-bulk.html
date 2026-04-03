@@ -266,20 +266,7 @@
       border-color: #FFD54F;
       box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.5), 0 0 20px rgba(255, 213, 79, 0.7);
     }
-    #vk-cursor {
-      position: fixed;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: white;
-      border: 2px solid #333;
-      box-shadow: 0 0 6px rgba(0,0,0,0.6);
-      pointer-events: none;
-      z-index: 600;
-      transform: translate(-50%, -50%);
-      display: none;
-    }
-    .ctrl-zone.vk-active,
+.ctrl-zone.vk-active,
     .ctrl-zone-center.vk-active,
     .shift-zone.vk-active {
       filter: brightness(1.7) !important;
@@ -562,7 +549,7 @@
     <select id="annotation-select">
       <option value="adult-alive">🦆 Adult Alive</option>
       <option value="adult-dead">💀 Adult Dead</option>
-      <option value="juvenile">🐛 Juvenile</option>
+      <option value="juvenile">🐛 Juvenile Alive</option>
       <option value="juvenile-dead">💀 Juvenile Dead</option>
       <option value="molt">💀 Molt</option>
       <option value="age-unknown">❓ Age Unknown</option>
@@ -595,27 +582,29 @@
           <kbd class="vk-num">1</kbd><kbd class="vk-num">2</kbd><kbd class="vk-num">3</kbd><kbd class="vk-num">4</kbd><kbd class="vk-num">5</kbd><kbd class="vk-dim">6</kbd><kbd class="vk-dim">7</kbd><kbd class="vk-dim">8</kbd><kbd class="vk-dim">9</kbd><kbd class="vk-dim">0</kbd>
         </div>
         <div class="vkb-row">
-          <kbd class="vk-dim">x</kbd><kbd class="vk-dim">v</kbd><kbd class="vk-dim">l</kbd><kbd class="vk-dim">c</kbd><kbd class="vk-dim">w</kbd><kbd class="vk-dim">k</kbd><kbd class="vk-dim">h</kbd><kbd class="vk-zone">g</kbd><kbd class="vk-zone">f</kbd><kbd class="vk-zone">q</kbd><kbd class="vk-dim">ß</kbd><kbd class="vk-dim">'</kbd>
+          <kbd class="vk-dim">x</kbd><kbd class="vk-dim">v</kbd><kbd class="vk-dim">l</kbd><kbd class="vk-dim">c</kbd><kbd class="vk-dim">w</kbd><kbd class="vk-zone">k</kbd><kbd class="vk-zone">h</kbd><kbd class="vk-zone">g</kbd><kbd class="vk-dim">f</kbd><kbd class="vk-dim">q</kbd><kbd class="vk-dim">ß</kbd><kbd class="vk-dim">'</kbd>
         </div>
         <div class="vkb-row">
-          <kbd class="vk-scroll">u</kbd><kbd class="vk-dim">i</kbd><kbd class="vk-nav">a</kbd><kbd class="vk-dim">e</kbd><kbd class="vk-dim">o</kbd><kbd class="vk-dim">s</kbd><kbd class="vk-nav">n</kbd><kbd class="vk-zone">r</kbd><kbd class="vk-dim">t</kbd><kbd class="vk-zone">d</kbd><kbd class="vk-dim">y</kbd>
+          <kbd class="vk-scroll">u</kbd><kbd class="vk-dim">i</kbd><kbd class="vk-nav">a</kbd><kbd class="vk-dim">e</kbd><kbd class="vk-dim">o</kbd><kbd class="vk-zone">s</kbd><kbd class="vk-zone">n</kbd><kbd class="vk-zone">r</kbd><kbd class="vk-dim">t</kbd><kbd class="vk-dim">d</kbd><kbd class="vk-dim">y</kbd>
         </div>
         <div class="vkb-row">
-          <kbd class="vk-scroll">ü</kbd><kbd class="vk-dim">ö</kbd><kbd class="vk-dim">ä</kbd><kbd class="vk-nav">p</kbd><kbd class="vk-dim">z</kbd><kbd class="vk-dim">b</kbd><kbd class="vk-dim">m</kbd><kbd class="vk-zone">,</kbd><kbd class="vk-zone">.</kbd><kbd class="vk-zone">j</kbd>
+          <kbd class="vk-scroll">ü</kbd><kbd class="vk-dim">ö</kbd><kbd class="vk-dim">ä</kbd><kbd class="vk-nav">p</kbd><kbd class="vk-dim">z</kbd><kbd class="vk-zone">b</kbd><kbd class="vk-zone">m</kbd><kbd class="vk-zone">,</kbd><kbd class="vk-dim">.</kbd><kbd class="vk-dim">j</kbd>
         </div>
       </div>
       <div class="guide-legend">
         <h3 style="grid-column:1/-1;margin:0 0 6px">Keys</h3>
-        <div class="guide-row"><span class="guide-keys"><kbd>1</kbd>–<kbd>5</kbd></span><span class="guide-desc">focus obs (multi)</span></div>
-        <div class="guide-row"><span class="guide-keys"><kbd>Ctrl</kbd></span><span class="guide-desc">age / alive overlay</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>1</kbd>–<kbd>5</kbd></span><span class="guide-desc">focus obs / shows overlay</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>u</kbd><kbd>ü</kbd></span><span class="guide-desc">scroll next / prev row</span></div>
-        <div class="guide-row"><span class="guide-keys"><kbd>Shift</kbd></span><span class="guide-desc">sex / evidence overlay</span></div>
-        <div class="guide-row"><span class="guide-keys"><kbd>n</kbd></span><span class="guide-desc">next page</span></div>
-        <div class="guide-row"><span class="guide-keys"><kbd>g…j</kbd></span><span class="guide-desc">activate zone directly</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Ctrl</kbd></span><span class="guide-desc">tap: toggle age/alive overlay</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Shift</kbd></span><span class="guide-desc">hold: switch to sex/evidence overlay</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Space</kbd></span><span class="guide-desc">next page</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>k…n…,</kbd></span><span class="guide-desc">activate zone directly</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>p</kbd></span><span class="guide-desc">select / deselect page</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>↑↓←→</kbd></span><span class="guide-desc">move zone cursor</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>a</kbd></span><span class="guide-desc">select / deselect all</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>↵</kbd></span><span class="guide-desc">activate zone / queue</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>x</kbd></span><span class="guide-desc">deselect focus</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Ctrl↵</kbd></span><span class="guide-desc">open in new tab</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>Esc</kbd></span><span class="guide-desc">clear focus</span></div>
       </div>
     </div>
@@ -623,31 +612,31 @@
     <!-- Bottom: overlay maps -->
     <div class="guide-bottom">
       <div class="guide-panel">
-        <h3>Ctrl — age &amp; alive</h3>
+        <h3>Default — age &amp; alive</h3>
         <div class="guide-overlay-grid">
-          <div class="go-cell go-juv-alive">   <kbd>g</kbd> Juv Alive</div>
-          <div class="go-cell go-alive">        <kbd>f</kbd> Alive</div>
-          <div class="go-cell go-adult-alive">  <kbd>q</kbd> Adult Alive</div>
-          <div class="go-cell go-juv-cannot">   <kbd>r</kbd> Juv ?</div>
-          <div class="go-cell go-center">       <kbd>↵</kbd> ↗ tab</div>
-          <div class="go-cell go-adult-cannot"> <kbd>d</kbd> Adult ?</div>
-          <div class="go-cell go-juv-dead">     <kbd>,</kbd> Juv Dead</div>
-          <div class="go-cell go-dead">         <kbd>.</kbd> Dead</div>
-          <div class="go-cell go-adult-dead">   <kbd>j</kbd> Adult Dead</div>
+          <div class="go-cell go-juv-alive">   <kbd>k</kbd> Juv Alive</div>
+          <div class="go-cell go-alive">        <kbd>h</kbd> Alive</div>
+          <div class="go-cell go-adult-alive">  <kbd>g</kbd> Adult Alive</div>
+          <div class="go-cell go-juv-cannot">   <kbd>s</kbd> Juv ?</div>
+          <div class="go-cell go-center">       <kbd>n</kbd> ? age</div>
+          <div class="go-cell go-adult-cannot"> <kbd>r</kbd> Adult ?</div>
+          <div class="go-cell go-juv-dead">     <kbd>b</kbd> Juv Dead</div>
+          <div class="go-cell go-dead">         <kbd>m</kbd> Dead</div>
+          <div class="go-cell go-adult-dead">   <kbd>,</kbd> Adult Dead</div>
         </div>
       </div>
       <div class="guide-panel">
         <h3>Shift — sex &amp; evidence</h3>
         <div class="guide-overlay-grid">
-          <div class="go-cell go-female">       <kbd>g</kbd> ♀ Female</div>
-          <div class="go-cell go-mating">       <kbd>f</kbd> ❤️ Mating</div>
-          <div class="go-cell go-male">         <kbd>q</kbd> ♂ Male</div>
-          <div class="go-cell go-egg">          <kbd>r</kbd> 🥚 Egg</div>
-          <div class="go-cell go-molt">         <kbd>↵</kbd> 🪲 Molt</div>
-          <div class="go-cell go-pupa">         <kbd>d</kbd> 🐛 Pupa</div>
-          <div class="go-cell go-construction"> <kbd>,</kbd> 🏗 Constr</div>
-          <div class="go-cell go-gall">         <kbd>.</kbd> 🌿 Gall</div>
-          <div class="go-cell go-track">        <kbd>j</kbd> 👣 Track</div>
+          <div class="go-cell go-female">       <kbd>k</kbd> ♀ Female</div>
+          <div class="go-cell go-mating">       <kbd>h</kbd> ❤️ Mating</div>
+          <div class="go-cell go-male">         <kbd>g</kbd> ♂ Male</div>
+          <div class="go-cell go-egg">          <kbd>s</kbd> 🥚 Egg</div>
+          <div class="go-cell go-molt">         <kbd>n</kbd> 🪲 Molt</div>
+          <div class="go-cell go-pupa">         <kbd>r</kbd> 🐛 Pupa</div>
+          <div class="go-cell go-construction"> <kbd>b</kbd> 🏗 Constr</div>
+          <div class="go-cell go-gall">         <kbd>m</kbd> 🌿 Gall</div>
+          <div class="go-cell go-track">        <kbd>,</kbd> 👣 Track</div>
         </div>
       </div>
     </div>
@@ -656,7 +645,7 @@
 
   <div id="obs-grid"></div>
   <div id="loading-msg">Loading observations from iNaturalist API...</div>
-  <div id="grid-footer"><kbd>n</kbd> next page &nbsp;•&nbsp; <kbd>↵</kbd> add to queue &amp; close</div>
+  <div id="grid-footer"><kbd>Space</kbd> next page &nbsp;•&nbsp; <kbd>↵</kbd> add to queue &amp; close</div>
 
   <div id="queue-toast">Saved to queue!</div>
 
@@ -692,8 +681,9 @@
       <h3>Click Actions</h3>
       <table>
         <tr><td>Click</td><td>Select or deselect an observation.</td></tr>
-        <tr><td>Ctrl+hover</td><td>Shows the age/alive overlay over the card. Click a zone to deselect and immediately annotate with that age/state. Center circle opens the observation in a new tab.</td></tr>
-        <tr><td>Shift+hover</td><td>Shows the sex/evidence/mating overlay. Click a zone to annotate — <em>without</em> deselecting the observation.
+        <tr><td>1–5 keys</td><td>Focus an observation — shows the age/alive overlay immediately. Use zone keys or arrows+↵ to annotate. Center circle opens in a new tab.</td></tr>
+        <tr><td>Shift (hold)</td><td>While a card is focused, switches to the sex/evidence/mating overlay.</td></tr>
+        <tr><td>Shift+hover</td><td>Shows the sex/evidence/mating overlay on mouse hover. Click a zone to annotate — <em>without</em> deselecting the observation.
           <ul>
             <li><b>♀ Female / ♂ Male</b> — sets the Sex annotation</li>
             <li><b>🏗 Construction</b> — sets Evidence of Presence: Construction</li>
@@ -713,7 +703,9 @@
 
       <h3>Keyboard Shortcuts</h3>
       <table>
-        <tr><td>n</td><td>Next page</td></tr>
+        <tr><td>Space</td><td>Next page</td></tr>
+        <tr><td>n</td><td>Cannot be determined (alive/dead, no age)</td></tr>
+        <tr><td>Ctrl+↵</td><td>Deselect and open focused obs in new tab</td></tr>
         <tr><td>p</td><td>Select/deselect current page</td></tr>
         <tr><td>a</td><td>Select/deselect all</td></tr>
         <tr><td>x</td><td>Add to queue (and close)</td></tr>
@@ -726,14 +718,13 @@
     <div class="ctrl-zone ctrl-zone-alive-only"   data-type="age-unknown"      title="Alive (no age)">Alive</div>
     <div class="ctrl-zone ctrl-zone-adult-alive"  data-type="adult-alive"      title="Adult — Alive">Adult<br>Alive</div>
     <div class="ctrl-zone ctrl-zone-juv-cannot"   data-type="juvenile-cannot"  title="Juvenile — Cannot Be Determined">Juv<br>?</div>
-    <div class="ctrl-zone-center"                                               title="Open in new tab">↗</div>
+    <div class="ctrl-zone ctrl-zone-center"        data-type="cannot-only"      title="Cannot Be Determined (no age)">?</div>
     <div class="ctrl-zone ctrl-zone-adult-cannot" data-type="adult-cannot"     title="Adult — Cannot Be Determined">Adult<br>?</div>
     <div class="ctrl-zone ctrl-zone-juv-dead"     data-type="juvenile-dead"    title="Juvenile — Dead">Juv<br>Dead</div>
     <div class="ctrl-zone ctrl-zone-dead-only"    data-type="dead-only"        title="Dead (no age)">Dead</div>
     <div class="ctrl-zone ctrl-zone-adult-dead"   data-type="adult-dead"       title="Adult — Dead">Adult<br>Dead</div>
   </div>
 
-  <div id="vk-cursor"></div>
   <script src="custom-bulk.js"></script>
 </body>
 </html>
