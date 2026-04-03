@@ -1082,26 +1082,23 @@ document.addEventListener('keydown', (e) => {
       break;
     case 'Enter': {
       if (ctrlHeld) {
-        // Ctrl+Enter: deselect and open the overlay card in a new tab
-        const targetId = ctrlOverlayCardId || kbPrimaryId;
-        if (targetId) {
-          ctrlDeselectCard(targetId);
-          chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${targetId}`, active: false });
-          hideCtrlOverlay();
-          clearKbFocus();
+        // Ctrl+Enter: send all selected to queue and close
+        if (!shiftHeld) {
+          if (annotationType === 'sex-split') {
+            if (femaleIds.size > 0 || maleIds.size > 0) addToQueue().then(() => window.close());
+          } else if (selectedIds.size > 0) {
+            tryAddToQueue();
+          }
         }
         e.preventDefault();
       } else if (kbPrimaryId) {
-        const overlayEl = shiftHeld ? shiftOverlayEl : ctrlOverlayEl;
-        const zone = Array.from(overlayEl.children)[vkRow * 3 + vkCol];
-        if (zone) applyZoneToFocusedCards(zone, !shiftHeld);
+        // Enter: deselect and open focused obs in new tab
+        const targetId = ctrlOverlayCardId || kbPrimaryId;
+        ctrlDeselectCard(targetId);
+        chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${targetId}`, active: false });
+        hideCtrlOverlay();
+        clearKbFocus();
         e.preventDefault();
-      } else if (!shiftHeld) {
-        if (annotationType === 'sex-split') {
-          if (femaleIds.size > 0 || maleIds.size > 0) addToQueue().then(() => window.close());
-        } else if (selectedIds.size > 0) {
-          tryAddToQueue();
-        }
       }
       break;
     }

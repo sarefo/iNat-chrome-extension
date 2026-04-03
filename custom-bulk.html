@@ -602,9 +602,9 @@
         <div class="guide-row"><span class="guide-keys"><kbd>p</kbd></span><span class="guide-desc">select / deselect page</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>↑↓←→</kbd></span><span class="guide-desc">move zone cursor</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>a</kbd></span><span class="guide-desc">select / deselect all</span></div>
-        <div class="guide-row"><span class="guide-keys"><kbd>↵</kbd></span><span class="guide-desc">activate zone / queue</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>↵</kbd></span><span class="guide-desc">deselect &amp; open in new tab</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>x</kbd></span><span class="guide-desc">deselect focus</span></div>
-        <div class="guide-row"><span class="guide-keys"><kbd>Ctrl↵</kbd></span><span class="guide-desc">open in new tab</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>Ctrl↵</kbd></span><span class="guide-desc">add to queue &amp; close</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>Esc</kbd></span><span class="guide-desc">clear focus</span></div>
       </div>
     </div>
@@ -645,7 +645,7 @@
 
   <div id="obs-grid"></div>
   <div id="loading-msg">Loading observations from iNaturalist API...</div>
-  <div id="grid-footer"><kbd>Space</kbd> next page &nbsp;•&nbsp; <kbd>↵</kbd> add to queue &amp; close</div>
+  <div id="grid-footer"><kbd>Space</kbd> next page &nbsp;•&nbsp; <kbd>↵</kbd> open in new tab &nbsp;•&nbsp; <kbd>Ctrl↵</kbd> add to queue &amp; close</div>
 
   <div id="queue-toast">Saved to queue!</div>
 
@@ -681,7 +681,7 @@
       <h3>Click Actions</h3>
       <table>
         <tr><td>Click</td><td>Select or deselect an observation.</td></tr>
-        <tr><td>1–5 keys</td><td>Focus an observation — shows the age/alive overlay immediately. Use zone keys or arrows+↵ to annotate. Center circle opens in a new tab.</td></tr>
+        <tr><td>1–5 keys</td><td>Focus an observation — shows the age/alive overlay immediately. Use zone keys to annotate. Press ↵ to open in a new tab (and deselect).</td></tr>
         <tr><td>Shift (hold)</td><td>While a card is focused, switches to the sex/evidence/mating overlay.</td></tr>
         <tr><td>Shift+hover</td><td>Shows the sex/evidence/mating overlay on mouse hover. Click a zone to annotate — <em>without</em> deselecting the observation.
           <ul>
@@ -705,10 +705,11 @@
       <table>
         <tr><td>Space</td><td>Next page</td></tr>
         <tr><td>n</td><td>Cannot be determined (alive/dead, no age)</td></tr>
-        <tr><td>Ctrl+↵</td><td>Deselect and open focused obs in new tab</td></tr>
+        <tr><td>↵</td><td>Deselect and open focused obs in new tab</td></tr>
+        <tr><td>Ctrl+↵</td><td>Add to queue and close</td></tr>
         <tr><td>p</td><td>Select/deselect current page</td></tr>
         <tr><td>a</td><td>Select/deselect all</td></tr>
-        <tr><td>x</td><td>Add to queue (and close)</td></tr>
+        <tr><td>x</td><td>Deselect focused card(s)</td></tr>
       </table>
     </div>
   </div>
