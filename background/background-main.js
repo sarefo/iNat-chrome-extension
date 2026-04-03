@@ -56,14 +56,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'processQueues') {
-    // Allow restart even if a previous run is active (e.g. stalled due to bad network).
-    // The generation counter prevents an old run's finally() from clearing the new run's flag.
     const gen = ++queueGen;
-    queueProcessingActive = true;
-    processQueuedObservations(request.queueIds, request.jwt)
-      .then(r => sendResponse({ success: true, ...r }))
-      .catch(e => sendResponse({ success: false, error: e.message }))
-      .finally(() => { if (queueGen === gen) queueProcessingActive = false; });
+    // Signal any running job to stop, then wait for it to exit before starting fresh
+    const startNew = () => {
+      if (queueGen !== gen) return; // superseded by an even newer request
+      queueProcessingActive = true;
+      processQueuedObservations(request.queueIds, request.jwt)
+        .then(r => sendResponse({ success: true, ...r }))
+        .catch(e => sendResponse({ success: false, error: e.message }))
+        .finally(() => { if (queueGen === gen) queueProcessingActive = false; });
+    };
+    if (queueProcessingActive) {
+      chrome.storage.local.set({ innat_cancel_current_queue: true }, () => {
+        // Poll until the previous run has exited (max ~2s)
+        let attempts = 0;
+        const wait = setInterval(() => {
+          if (!queueProcessingActive || ++attempts > 20) { clearInterval(wait); startNew(); }
+        }, 100);
+      });
+    } else {
+      startNew();
+    }
     return true;
   }
 
