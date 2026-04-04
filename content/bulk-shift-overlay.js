@@ -137,10 +137,10 @@ function applyShiftAnnotation(observationId, observationDiv, key, label) {
       jwt: jwt || null
     }, response => {
       if (response?.success) {
-        showShiftToast(`${label} ✓`);
+        showShiftToast(`${label} ✓`, false, observationDiv);
         observationDiv.style.outline = '3px solid #6A1B9A';
       } else {
-        showShiftToast(`Failed: ${response?.error || 'unknown error'}`, true);
+        showShiftToast(`Failed: ${response?.error || 'unknown error'}`, true, observationDiv);
         observationDiv.style.outline = '3px solid #f44336';
       }
       setTimeout(() => { observationDiv.style.outline = originalOutline; }, 2500);
@@ -153,10 +153,10 @@ function applyShiftAnnotation(observationId, observationDiv, key, label) {
       mode: key
     }, response => {
       if (response?.success) {
-        showShiftToast(`${label} ✓`);
+        showShiftToast(`${label} ✓`, false, observationDiv);
         observationDiv.style.outline = '3px solid #4CAF50';
       } else {
-        showShiftToast(`Failed: ${response?.error || 'unknown error'}`, true);
+        showShiftToast(`Failed: ${response?.error || 'unknown error'}`, true, observationDiv);
         observationDiv.style.outline = '3px solid #f44336';
       }
       setTimeout(() => { observationDiv.style.outline = originalOutline; }, 2500);
@@ -164,17 +164,27 @@ function applyShiftAnnotation(observationId, observationDiv, key, label) {
   }
 }
 
-function showShiftToast(message, isError = false) {
+function showShiftToast(message, isError = false, anchorDiv = null) {
   const existing = document.getElementById('innat-shift-toast');
   if (existing) existing.remove();
 
   const toast = document.createElement('div');
   toast.id = 'innat-shift-toast';
   toast.textContent = message;
+
+  let positionCss;
+  if (anchorDiv) {
+    const rect = anchorDiv.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    positionCss = `left: ${centerX}px; top: ${centerY}px; transform: translate(-50%, -50%);`;
+  } else {
+    positionCss = `top: 60px; right: 16px;`;
+  }
+
   toast.style.cssText = `
     position: fixed;
-    top: 60px;
-    right: 16px;
+    ${positionCss}
     z-index: 999999;
     background: ${isError ? '#c62828' : '#4527A0'};
     color: #fff;

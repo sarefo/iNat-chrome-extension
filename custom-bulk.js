@@ -205,7 +205,7 @@ function updateStatusInfo() {
   } else if (dataStatus === 'error') {
     html += ` &nbsp;|&nbsp; <span style="color:red">Error loading data</span>`;
   } else if (dataStatus === 'partial') {
-    html += ` &nbsp;|&nbsp; ${loaded} / ${totalCount} loaded &nbsp;|&nbsp; <span style="color:#FF9800">reach last page to load more</span>`;
+    html += ` &nbsp;|&nbsp; ${loaded} / ${totalCount} loaded &nbsp;|&nbsp; <span style="color:#FF9600">reach last page to load more</span>`;
   } else {
     html += ` &nbsp;|&nbsp; ${loaded} observations`;
   }
@@ -363,6 +363,7 @@ ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
     ctrlDeselectCard(id);
     const label = ANNOTATION_LABELS[type] || type;
     const toast = document.getElementById('queue-toast');
+    const centered = positionToastOnCard(toast, id);
     toast.textContent = `⏳ Annotating: ${label}…`;
     toast.classList.add('active');
     chrome.runtime.sendMessage(
@@ -375,7 +376,7 @@ ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
         } else {
           toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
         }
-        setTimeout(() => toast.classList.remove('active'), 3000);
+        setTimeout(() => toast.classList.remove('active'), centered ? 600 : 3000);
       }
     );
   });
@@ -494,6 +495,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
     // Shift-mode: do NOT deselect the observation
     const label = SHIFT_ANNOTATION_LABELS[type] || type;
     const toast = document.getElementById('queue-toast');
+    const centeredShift = positionToastOnCard(toast, id);
     toast.textContent = `⏳ Annotating: ${label}…`;
     toast.classList.add('active');
 
@@ -520,7 +522,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
           } else {
             toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
           }
-          setTimeout(() => toast.classList.remove('active'), 3000);
+          setTimeout(() => toast.classList.remove('active'), centeredShift ? 600 : 3000);
         }
       );
     } else {
@@ -534,7 +536,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
           } else {
             toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
           }
-          setTimeout(() => toast.classList.remove('active'), 3000);
+          setTimeout(() => toast.classList.remove('active'), centeredShift ? 600 : 3000);
         }
       );
     }
@@ -998,12 +1000,32 @@ function clearKbFocus() {
   kbPrimaryId = null;
 }
 
+function positionToastOnCard(toast, cardId) {
+  const card = cardId && document.querySelector(`.obs-card[data-id="${cardId}"]`);
+  if (card) {
+    const rect = card.getBoundingClientRect();
+    toast.style.top = (rect.top + rect.height / 2) + 'px';
+    toast.style.left = (rect.left + rect.width / 2) + 'px';
+    toast.style.right = 'auto';
+    toast.style.transform = 'translate(-50%, -50%)';
+    return true;
+  } else {
+    toast.style.top = '16px';
+    toast.style.right = '16px';
+    toast.style.left = 'auto';
+    toast.style.transform = 'none';
+    return false;
+  }
+}
+
 function applyZoneToFocusedCards(zoneEl, isCtrl) {
   const type = zoneEl.dataset.type;
   const ids = Array.from(kbFocusedIds);
   const count = ids.length;
   const label = (isCtrl ? ANNOTATION_LABELS[type] : SHIFT_ANNOTATION_LABELS[type]) || type;
   const toast = document.getElementById('queue-toast');
+  const centered = positionToastOnCard(toast, kbPrimaryId);
+  const toastDelay = centered ? 600 : 3000;
 
   if (isCtrl) {
     toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
@@ -1013,7 +1035,7 @@ function applyZoneToFocusedCards(zoneEl, isCtrl) {
       chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type });
     });
     toast.textContent = `✓ ${count}× ${label}`;
-    setTimeout(() => toast.classList.remove('active'), 3000);
+    setTimeout(() => toast.classList.remove('active'), toastDelay);
   } else if (type === 'mating') {
     toast.textContent = `⏳ Tagging ${count}× mating…`;
     toast.classList.add('active');
@@ -1035,13 +1057,13 @@ function applyZoneToFocusedCards(zoneEl, isCtrl) {
       });
     });
     toast.textContent = `✓ ${count}× ❤️ Mating`;
-    setTimeout(() => toast.classList.remove('active'), 3000);
+    setTimeout(() => toast.classList.remove('active'), toastDelay);
   } else {
     toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
     toast.classList.add('active');
     ids.forEach(id => chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type }));
     toast.textContent = `✓ ${count}× ${label}`;
-    setTimeout(() => toast.classList.remove('active'), 3000);
+    setTimeout(() => toast.classList.remove('active'), toastDelay);
   }
 
   if (isCtrl) hideCtrlOverlay(); else hideShiftOverlay();
