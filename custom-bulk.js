@@ -471,6 +471,18 @@ function hideShiftOverlay() {
   document.querySelectorAll('.vk-active').forEach(el => el.classList.remove('vk-active'));
 }
 
+function showPhotoOverlay(url) {
+  const overlay = document.getElementById('photo-overlay');
+  document.getElementById('photo-overlay-img').src = url;
+  overlay.classList.add('visible');
+}
+
+function hidePhotoOverlay() {
+  document.getElementById('photo-overlay').classList.remove('visible');
+}
+
+document.getElementById('photo-overlay').addEventListener('click', hidePhotoOverlay);
+
 shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
   zone.addEventListener('click', e => {
     e.stopPropagation();
@@ -1106,6 +1118,7 @@ document.addEventListener('keydown', (e) => {
       clearKbFocus();
       hideCtrlOverlay();
       hideShiftOverlay();
+      hidePhotoOverlay();
       break;
     default: {
       // Zone shortcuts: khg=top row, snr=middle row, bm,=bottom row (neo2 positions)
@@ -1122,6 +1135,15 @@ document.addEventListener('keydown', (e) => {
         break;
       }
       switch (e.key.toLowerCase()) {
+        case 'o': {
+          if (document.getElementById('photo-overlay').classList.contains('visible')) {
+            hidePhotoOverlay();
+          } else if (kbPrimaryId) {
+            const obs = allObservations.find(o => o.id === kbPrimaryId);
+            if (obs?.photoUrl) showPhotoOverlay(obs.photoUrl);
+          }
+          break;
+        }
         case 'x':
           if (kbFocusedIds.size > 0) {
             [...kbFocusedIds].forEach(id => ctrlDeselectCard(id));

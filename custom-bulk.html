@@ -503,6 +503,25 @@
       font-size: 18px; cursor: pointer; color: #666;
     }
 
+    /* Photo overlay */
+    #photo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #photo-overlay.visible { display: flex; }
+    #photo-overlay img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
     /* Warning modal */
     #warn-overlay {
       display: none;
@@ -604,6 +623,7 @@
         <div class="guide-row"><span class="guide-keys"><kbd>a</kbd></span><span class="guide-desc">select / deselect all</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>↵</kbd></span><span class="guide-desc">deselect &amp; open in new tab</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>x</kbd></span><span class="guide-desc">deselect focus</span></div>
+        <div class="guide-row"><span class="guide-keys"><kbd>o</kbd></span><span class="guide-desc">show image full-screen</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>Ctrl↵</kbd></span><span class="guide-desc">add to queue &amp; close</span></div>
         <div class="guide-row"><span class="guide-keys"><kbd>Esc</kbd></span><span class="guide-desc">clear focus</span></div>
       </div>
@@ -648,6 +668,8 @@
   <div id="grid-footer"><kbd>Space</kbd> next page &nbsp;•&nbsp; <kbd>↵</kbd> open in new tab &nbsp;•&nbsp; <kbd>Ctrl↵</kbd> add to queue &amp; close</div>
 
   <div id="queue-toast">Saved to queue!</div>
+
+  <div id="photo-overlay"><img id="photo-overlay-img" src="" alt=""></div>
 
   <div id="warn-overlay">
     <div id="warn-dialog">
