@@ -1146,7 +1146,16 @@ document.addEventListener('keydown', (e) => {
         }
         case 'x':
           if (kbFocusedIds.size > 0) {
-            [...kbFocusedIds].forEach(id => ctrlDeselectCard(id));
+            [...kbFocusedIds].forEach(id => {
+              selectedIds.delete(id);
+              femaleIds.delete(id);
+              maleIds.delete(id);
+              manuallyDeselectedIds.add(id);
+              const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+              if (card) { card.classList.remove('selected'); card.classList.add('deselected'); card.querySelector('.sex-female-overlay')?.classList.remove('active'); card.querySelector('.sex-male-overlay')?.classList.remove('active'); }
+            });
+            saveSelections(); saveSexSelections(); updateToolbar(); updateStatusInfo();
+            hideCtrlOverlay(); hideShiftOverlay();
             clearKbFocus();
           }
           break;
