@@ -1129,7 +1129,7 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
       } else if (kbPrimaryId) {
         // Enter: deselect and open all focused obs in new tabs
-        const idsToOpen = ctrlOverlayCardId ? [ctrlOverlayCardId] : [...kbFocusedIds];
+        const idsToOpen = kbFocusedIds.size > 0 ? [...kbFocusedIds] : (ctrlOverlayCardId ? [ctrlOverlayCardId] : []);
         idsToOpen.forEach(id => {
           ctrlDeselectCard(id);
           chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
