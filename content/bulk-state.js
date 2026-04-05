@@ -13,7 +13,8 @@ function isObservationsListPage() {
   return url.includes('/observations?') ||
          (url.includes('/observations') && window.location.search.length > 0) ||
          url.includes('/observations/export') ||
-         url.includes('/observations/identify');
+         url.includes('/observations/identify') ||
+         /\/taxa\/\d+/.test(url);
 }
 
 // Observation selection highlight helpers

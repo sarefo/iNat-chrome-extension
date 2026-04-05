@@ -389,3 +389,58 @@ if (isObservationsListPage()) {
 
   observer.observe(document.body, { childList: true, subtree: true });
 }
+
+// Ctrl+B: launch bulk mode from keyboard (mirrors popup's startBulkModeFromTab)
+document.addEventListener('keydown', (e) => {
+  if (!(e.key === 'b' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey)) return;
+  e.preventDefault();
+
+  const url = window.location.href;
+  const jwt = document.querySelector('meta[name="inaturalist-api-token"]')?.content || null;
+  const annotationType = 'adult-alive';
+  const withoutTermId = 17;
+
+  function launchBulkMode(searchUrl) {
+    chrome.runtime.sendMessage({
+      action: 'startCustomBulkMode',
+      searchUrl,
+      jwt,
+      annotationType,
+      sourceTabId: null
+    }, () => { void chrome.runtime.lastError; });
+  }
+
+  // Taxon page: /taxa/12345-Name
+  const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)/);
+  if (taxaMatch) {
+    launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxaMatch[1]}&without_term_id=${withoutTermId}`);
+    return;
+  }
+
+  // Single observation page: /observations/12345 (no further path segments)
+  const obsMatch = url.match(/inaturalist\.org\/observations\/(\d+)(?:[^/]|$)/);
+  if (obsMatch) {
+    const link = document.querySelector('a[href*="/taxa/"]');
+    const taxonMatch = link?.href.match(/\/taxa\/(\d+)/);
+    if (taxonMatch) {
+      launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonMatch[1]}&without_term_id=${withoutTermId}`);
+      return;
+    }
+    // Fallback: API fetch
+    fetch(`https://api.inaturalist.org/v1/observations/${obsMatch[1]}`)
+      .then(r => r.json())
+      .then(data => {
+        const taxonId = data?.results?.[0]?.taxon?.id;
+        if (taxonId) launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=${withoutTermId}`);
+      })
+      .catch(() => {});
+    return;
+  }
+
+  // Observations list page: add/replace without_term_id filter
+  if (url.includes('inaturalist.org/observations')) {
+    const parsed = new URL(url);
+    parsed.searchParams.set('without_term_id', String(withoutTermId));
+    launchBulkMode(parsed.toString());
+  }
+});
