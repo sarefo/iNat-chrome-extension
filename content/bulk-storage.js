@@ -37,7 +37,7 @@ async function saveAsNamedQueue() {
 
   const id = `q_${Date.now()}`;
   const params = new URLSearchParams(window.location.search);
-  const taxon = params.get('taxon_name') || params.get('taxon_id') || '';
+  const taxon = params.get('taxon_name') || params.get('taxon_id') || bulkTaxonId || '';
   const taxonPrefix = taxon ? `${taxon} · ` : '';
   const name = `${taxonPrefix}${getAnnotationDisplayName(bulkAnnotationMode)} (${observations.length})`;
   const queue = {
