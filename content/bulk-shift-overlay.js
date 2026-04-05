@@ -194,6 +194,7 @@ function showShiftToast(message, isError = false, anchorDiv = null) {
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     padding: 9px 14px;
     pointer-events: none;
+    white-space: nowrap;
   `;
   document.body.appendChild(toast);
   setTimeout(() => {

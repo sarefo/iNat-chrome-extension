@@ -427,6 +427,8 @@ document.addEventListener('keyup', e => {
 
 window.addEventListener('blur', () => {
   shiftHeld = false;
+  ctrlHeld = false;
+  ctrlComboUsed = false;
   hideShiftOverlay();
   if (kbPrimaryId) {
     const c = document.querySelector(`.obs-card[data-id="${kbPrimaryId}"]`);
@@ -1126,10 +1128,12 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
       } else if (kbPrimaryId) {
-        // Enter: deselect and open focused obs in new tab
-        const targetId = ctrlOverlayCardId || kbPrimaryId;
-        ctrlDeselectCard(targetId);
-        chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${targetId}`, active: false });
+        // Enter: deselect and open all focused obs in new tabs
+        const idsToOpen = ctrlOverlayCardId ? [ctrlOverlayCardId] : [...kbFocusedIds];
+        idsToOpen.forEach(id => {
+          ctrlDeselectCard(id);
+          chrome.tabs.create({ url: `https://www.inaturalist.org/observations/${id}`, active: false });
+        });
         hideCtrlOverlay();
         clearKbFocus();
         e.preventDefault();

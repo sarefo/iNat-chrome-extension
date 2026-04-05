@@ -60,8 +60,13 @@ export async function processQueuedObservations(queueIds, jwt) {
   await new Promise(resolve => chrome.storage.local.remove('innat_cancel_current_queue', resolve));
   await resetStuckQueues();
 
+  // Sort queue IDs by observation count ascending (fewest obs first)
+  const allQueuesForSort = await getQueues();
+  const obsCountMap = new Map(allQueuesForSort.map(q => [q.id, q.observations.length]));
+  const sortedQueueIds = [...queueIds].sort((a, b) => (obsCountMap.get(a) ?? 0) - (obsCountMap.get(b) ?? 0));
+
   // Write pending IDs to storage so popup can modify them mid-run
-  await setPendingQueueIds([...queueIds]);
+  await setPendingQueueIds(sortedQueueIds);
 
   const results = [];
 

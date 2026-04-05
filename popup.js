@@ -155,8 +155,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const processSelectedButton = document.getElementById('processSelectedButton');
   const selectAllQueuesButton = document.getElementById('selectAllQueues');
   const clearCompletedButton = document.getElementById('clearCompletedQueues');
+  const queueEta = document.getElementById('queueEta');
   let selectedQueueIds = new Set();
   let isRunning = false;
+  let thisPopupStartedRun = false;  // true only when THIS popup instance sent the processQueues message
   let pendingQueueIds = new Set();
   let cancelCurrentRequested = false;
   let activeButtonType = null;  // 'all' | 'selected' — persisted across popup reopens
@@ -370,6 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
     processAllButton.disabled = true;
     processSelectedButton.disabled = true;
     isRunning = true;
+    thisPopupStartedRun = true;
     pendingQueueIds = new Set(ids);
     lastTotalProcessed = 0;
     startStallCheck();
@@ -380,6 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const jwt = jwtResponse?.jwt || null;
         chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids, jwt }, response => {
           isRunning = false;
+          thisPopupStartedRun = false;
           pendingQueueIds.clear();
           cancelCurrentRequested = false;
           stopStallCheck();
@@ -405,6 +409,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  function updateEta() {
+    chrome.storage.local.get(['innat_queues'], result => {
+      const queues = result.innat_queues || [];
+      const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
+      const totalDone = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
+      const secsLeft = totalObs - totalDone;
+      if (secsLeft > 0) {
+        const h = Math.floor(secsLeft / 3600);
+        const m = Math.floor((secsLeft % 3600) / 60);
+        const s = secsLeft % 60;
+        queueEta.textContent = h > 0
+          ? `~${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+          : `~${m}:${String(s).padStart(2,'0')}`;
+        queueEta.style.display = '';
+      } else {
+        queueEta.style.display = 'none';
+      }
+    });
+  }
+
   function startStallCheck() {
     lastProgressTime = Date.now();
     clearInterval(stallCheckInterval);
@@ -415,7 +439,8 @@ document.addEventListener('DOMContentLoaded', function() {
         isStalled = nowStalled;
         updateRunningButtonState();
       }
-    }, 5000);
+      updateEta();
+    }, 1000);
     updateRunningButtonState();
   }
 
@@ -423,6 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
     clearInterval(stallCheckInterval);
     stallCheckInterval = null;
     isStalled = false;
+    queueEta.style.display = 'none';
     processAllButton.classList.remove('running', 'stalled');
     processSelectedButton.classList.remove('running', 'stalled');
   }
@@ -431,6 +457,12 @@ document.addEventListener('DOMContentLoaded', function() {
     processAllButton.classList.remove('running', 'stalled');
     processSelectedButton.classList.remove('running', 'stalled');
     if (!isRunning) return;
+    // Only disable buttons if this popup instance started the run;
+    // if we just detected a run on open, keep them enabled so user can restart
+    if (thisPopupStartedRun) {
+      processAllButton.disabled = true;
+      processSelectedButton.disabled = true;
+    }
     const cls = isStalled ? 'stalled' : 'running';
     const btn = activeButtonType === 'selected' ? processSelectedButton : processAllButton;
     btn.classList.add(cls);
