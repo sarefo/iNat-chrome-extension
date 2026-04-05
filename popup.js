@@ -150,8 +150,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Queue management
   const queueSection = document.getElementById('queueSection');
   const queueList = document.getElementById('queueList');
-  const queueBadge = document.getElementById('queueBadge');
-  const processAllButton = document.getElementById('processAllButton');
+const processAllButton = document.getElementById('processAllButton');
   const processSelectedButton = document.getElementById('processSelectedButton');
   const selectAllQueuesButton = document.getElementById('selectAllQueues');
   const clearCompletedButton = document.getElementById('clearCompletedQueues');
@@ -247,9 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (queues.some(q => q.status === 'processing')) {
       if (!isRunning) { isRunning = true; startStallCheck(); }
     }
-    const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
-    const totalDone = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
-    queueBadge.textContent = `${totalDone}/${totalObs}`;
     const allSelected = queues.every(q => selectedQueueIds.has(q.id));
     selectAllQueuesButton.textContent = allSelected ? 'Deselect All' : 'Select All';
     queueList.innerHTML = '';
@@ -413,7 +409,8 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.local.get(['innat_queues'], result => {
       const queues = result.innat_queues || [];
       const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
-      const totalDone = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
+      const totalDone = queues.reduce((sum, q) =>
+        q.status === 'completed' ? sum + q.observations.length : sum + (q.processedObservations?.length || 0), 0);
       const secsLeft = totalObs - totalDone;
       if (secsLeft > 0) {
         const h = Math.floor(secsLeft / 3600);
