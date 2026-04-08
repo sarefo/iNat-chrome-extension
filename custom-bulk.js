@@ -1189,6 +1189,10 @@ document.addEventListener('keydown', (e) => {
           if (currentPage < totalDisplayPages()) document.getElementById('btn-next').click();
           e.preventDefault();
           break;
+        case 'backspace':
+          if (currentPage > 1) document.getElementById('btn-prev').click();
+          e.preventDefault();
+          break;
         case 'p':
           document.getElementById('btn-select-page').click();
           break;
