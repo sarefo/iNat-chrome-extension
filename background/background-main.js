@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'startCustomBulkMode') {
-    startCustomBulkFetch(request.searchUrl, request.annotationType, request.jwt, request.sourceTabId)
+    startCustomBulkFetch(request.searchUrl, request.annotationType, request.jwt, request.sourceTabId ?? sender.tab?.id ?? null)
       .catch(err => console.error('[custom bulk] fetch failed:', err));
     sendResponse({ success: true });
     return true;
@@ -68,10 +68,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     };
     if (queueProcessingActive) {
       chrome.storage.local.set({ innat_cancel_current_queue: true }, () => {
-        // Poll until the previous run has exited (max ~2s)
-        let attempts = 0;
+        // Poll until the previous run has exited — never start concurrently
         const wait = setInterval(() => {
-          if (!queueProcessingActive || ++attempts > 20) { clearInterval(wait); startNew(); }
+          if (!queueProcessingActive) { clearInterval(wait); startNew(); }
         }, 100);
       });
     } else {
