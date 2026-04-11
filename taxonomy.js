@@ -680,7 +680,7 @@ function openBulkForTaxon(node) {
   renderGrid();
   if (treeVisible) renderTree();
 
-  const searchUrl = `https://www.inaturalist.org/observations?verifiable=true&taxon_id=${node.id}&taxon_name=${encodeURIComponent(node.name)}&without_term_id=17`;
+  const searchUrl = `https://www.inaturalist.org/observations?taxon_id=${node.id}&without_term_id=17`;
   chrome.runtime.sendMessage({
     action: 'startCustomBulkMode',
     searchUrl,
