@@ -605,11 +605,16 @@ async function fetchUnannCounts(nodes) {
   const toFetch = nodes.filter(n => !n.isLoadMore && n.unannCount === null && n.obsCount > 0);
   if (!toFetch.length) return;
 
-  const CONCURRENCY = 4;
-  const BATCH_DELAY = 300;
+  // Sort by rank (higher ranks first) and limit to ~12 taxa to respect 1 req/sec rate limit
+  const MAX_TO_FETCH = 12;
+  const sorted = toFetch.sort((a, b) => (RANK_INDEX[a.rank] ?? 99) - (RANK_INDEX[b.rank] ?? 99));
+  const limited = sorted.slice(0, MAX_TO_FETCH);
 
-  for (let i = 0; i < toFetch.length; i += CONCURRENCY) {
-    await Promise.all(toFetch.slice(i, i + CONCURRENCY).map(async node => {
+  const CONCURRENCY = 1;
+  const BATCH_DELAY = 1000; // 1 req/sec rate limit
+
+  for (let i = 0; i < limited.length; i += CONCURRENCY) {
+    await Promise.all(limited.slice(i, i + CONCURRENCY).map(async node => {
       try {
         const resp = await fetch(`https://api.inaturalist.org/v1/observations?taxon_id=${node.id}&without_term_id=17&per_page=1`);
         const json = await resp.json();
@@ -617,7 +622,7 @@ async function fetchUnannCounts(nodes) {
       } catch { node.unannCount = 0; }
       updateCountsInDOM(node);
     }));
-    if (i + CONCURRENCY < toFetch.length) await delay(BATCH_DELAY);
+    if (i + CONCURRENCY < limited.length) await delay(BATCH_DELAY);
   }
 
   renderGrid();
@@ -675,13 +680,14 @@ function openBulkForTaxon(node) {
   renderGrid();
   if (treeVisible) renderTree();
 
-  const searchUrl = `https://www.inaturalist.org/observations?taxon_id=${node.id}&taxon_name=${encodeURIComponent(node.name)}&without_term_id=17`;
+  const searchUrl = `https://www.inaturalist.org/observations?verifiable=true&taxon_id=${node.id}&taxon_name=${encodeURIComponent(node.name)}&without_term_id=17`;
   chrome.runtime.sendMessage({
     action: 'startCustomBulkMode',
     searchUrl,
     annotationType: 'adult-alive',
     jwt: null,
-    sourceTabId: 0  // 0 is falsy → background won't close this tab
+    sourceTabId: 0,  // 0 is falsy → background won't close this tab
+    taxonRank: node.rank  // Pass rank for exact-rank-only filtering
   }, () => { void chrome.runtime.lastError; });
 }
 

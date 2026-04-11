@@ -18,6 +18,8 @@ let dataStatus = 'loading';
 let searchUrl = null;
 let selectAllActive = false;
 let visitedPages = new Set([1]);
+let includeSubtaxa = true; // Include subtaxa in bulk mode by default
+let taxonRank = null; // Rank of the taxon, used for exact-rank-only filtering
 
 // ---------------------------------------------------------------------------
 // Storage helpers
@@ -141,9 +143,10 @@ function renderGrid() {
       reloadBtn.title = 'Retry loading image';
       reloadBtn.addEventListener('click', e => {
         e.stopPropagation();
-        const src = img.src;
-        img.src = '';
-        img.src = src;
+        // Add cache-bust parameter to force fresh request from server
+        const separator = photoUrl.includes('?') ? '&' : '?';
+        const bustUrl = photoUrl + separator + 'cb=' + Date.now();
+        img.src = bustUrl;
       });
 
       img.addEventListener('load',  () => reloadBtn.classList.add('loaded'));
@@ -210,6 +213,13 @@ function updateToolbar() {
   const allOnPageSelected = pageObs.length > 0 && pageObs.every(o => selectedIds.has(o.id));
   document.getElementById('btn-select-page').innerHTML =
     allOnPageSelected ? 'Deselect Page <kbd>(p)</kbd>' : 'Select Page <kbd>(p)</kbd>';
+
+  // Update subtaxa toggle button state
+  const subtaxaBtn = document.getElementById('btn-subtaxa');
+  if (subtaxaBtn) {
+    subtaxaBtn.classList.toggle('active', includeSubtaxa);
+    subtaxaBtn.textContent = includeSubtaxa ? '⊙ With Subtaxa' : '◯ Exact Rank Only';
+  }
 }
 
 function updateStatusInfo() {
@@ -241,6 +251,25 @@ function triggerFetchMore() {
     { action: 'fetchMoreObservations', searchUrl },
     () => { void chrome.runtime.lastError; }
   );
+}
+
+// Modify search URL to include or exclude subtaxa
+function modifySearchUrlForSubtaxa(url, includeSubtaxa) {
+  const urlObj = new URL(url);
+
+  if (includeSubtaxa) {
+    // Remove rank filtering parameters to include all subtaxa
+    urlObj.searchParams.delete('hrank');
+    urlObj.searchParams.delete('lrank');
+  } else {
+    // Restrict to exact rank only by setting both hrank and lrank to the same rank
+    if (taxonRank) {
+      urlObj.searchParams.set('hrank', taxonRank);
+      urlObj.searchParams.set('lrank', taxonRank);
+    }
+  }
+
+  return urlObj.toString();
 }
 
 // ---------------------------------------------------------------------------
@@ -833,6 +862,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   fetchedApiPages = data.fetchedApiPages || 0;
   dataStatus = data.status;
   if (data.searchUrl) searchUrl = data.searchUrl;
+  if (data.taxonRank) taxonRank = data.taxonRank;
   // Don't overwrite in-session selections from storage changes
 
   updateStatusInfo();
@@ -934,6 +964,38 @@ document.getElementById('btn-cancel').addEventListener('click', () => {
   chrome.storage.local.remove('innat_custom_bulk');
   window.close();
 });
+
+const btnSubtaxa = document.getElementById('btn-subtaxa');
+if (btnSubtaxa) {
+  btnSubtaxa.addEventListener('click', async () => {
+    includeSubtaxa = !includeSubtaxa;
+    updateToolbar();
+
+    // Reload observations with modified search URL
+    if (searchUrl) {
+      const newUrl = modifySearchUrlForSubtaxa(searchUrl, includeSubtaxa);
+      await chrome.storage.local.get(['innat_custom_bulk'], (result) => {
+        const data = result.innat_custom_bulk;
+        if (data) {
+          chrome.storage.local.set({
+            innat_custom_bulk: {
+              ...data,
+              searchUrl: newUrl,
+              status: 'loading',
+              observations: [],
+              fetchedApiPages: 0,
+              totalApiPages: 0
+            }
+          });
+          chrome.runtime.sendMessage(
+            { action: 'reloadObservations', searchUrl: newUrl },
+            () => { void chrome.runtime.lastError; }
+          );
+        }
+      });
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Keyboard shortcuts + virtual cursor

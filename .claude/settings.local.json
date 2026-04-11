@@ -26,7 +26,11 @@
       "Bash(curl -s https://api.inaturalist.org/v1/swagger.json)",
       "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms\")",
       "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms/for_taxon?taxon_id=1\")",
-      "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms/for_taxon?taxon_id=47208\")"
+      "Bash(curl -s \"https://api.inaturalist.org/v1/controlled_terms/for_taxon?taxon_id=47208\")",
+      "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/taxonomy.js)",
+      "Bash(ls:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ],
     "deny": []
   }
