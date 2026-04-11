@@ -108,6 +108,32 @@ document.addEventListener('DOMContentLoaded', function() {
     startBulkModeFromTab('sex-split', 9);
   });
 
+  document.getElementById('startTaxaMode').addEventListener('click', function() {
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      const url = tabs[0]?.url || '';
+      let taxonId = null, taxonName = null;
+      // Taxon page: /taxa/12345 or /taxa/12345-some-name
+      const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)(?:-([^/?#]+))?/);
+      if (taxaMatch) {
+        taxonId = taxaMatch[1];
+        taxonName = taxaMatch[2] ? taxaMatch[2].replace(/-/g, ' ') : null;
+      }
+      // Observations list with taxon_id param
+      if (!taxonId && url.includes('inaturalist.org/observations')) {
+        try { taxonId = new URL(url).searchParams.get('taxon_id'); } catch { /* ignore */ }
+      }
+      if (!taxonId) {
+        statusDiv.textContent = 'Must be on an iNat taxon or observations page';
+        statusDiv.style.color = 'red';
+        return;
+      }
+      const params = new URLSearchParams({ taxon_id: taxonId });
+      if (taxonName) params.set('taxon_name', taxonName);
+      chrome.tabs.create({ url: chrome.runtime.getURL(`taxonomy.html?${params}`) });
+      window.close();
+    });
+  });
+
   openUrlButton.addEventListener('click', function() {
     const baseUrl = 'https://www.inaturalist.org/observations?taxon_id=1';
     const userParam = currentUsername ? `&user_id=${currentUsername}` : '';
@@ -301,7 +327,16 @@ const processAllButton = document.getElementById('processAllButton');
         statusSuffix = ` [${queue.status}]`;
       }
       nameSpan.textContent = queue.name + statusSuffix;
-      nameSpan.title = queue.name;
+      let taxonIdForQueue = null;
+      try { taxonIdForQueue = queue.searchUrl ? new URL(queue.searchUrl).searchParams.get('taxon_id') : null; } catch {}
+      nameSpan.title = taxonIdForQueue ? `taxon_id: ${taxonIdForQueue}` : queue.name;
+      if (taxonIdForQueue) {
+        nameSpan.style.cursor = 'pointer';
+        nameSpan.addEventListener('click', e => {
+          e.stopPropagation();
+          chrome.tabs.create({ url: `https://www.inaturalist.org/taxa/${taxonIdForQueue}` });
+        });
+      }
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'queue-item-delete';

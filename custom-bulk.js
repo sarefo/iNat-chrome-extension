@@ -132,10 +132,29 @@ function renderGrid() {
 
     if (photoUrl) {
       const img = document.createElement('img');
-      img.src = photoUrl;
       img.alt = id;
       img.loading = 'eager';
+
+      const reloadBtn = document.createElement('button');
+      reloadBtn.className = 'reload-btn';
+      reloadBtn.textContent = '↻';
+      reloadBtn.title = 'Retry loading image';
+      reloadBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const src = img.src;
+        img.src = '';
+        img.src = src;
+      });
+
+      img.addEventListener('load',  () => reloadBtn.classList.add('loaded'));
+      img.addEventListener('error', () => reloadBtn.classList.remove('loaded'));
+
+      img.src = photoUrl;
+      // Hide immediately if browser already has it cached
+      if (img.complete && img.naturalWidth > 0) reloadBtn.classList.add('loaded');
+
       card.appendChild(img);
+      card.appendChild(reloadBtn);
     } else {
       const noPhoto = document.createElement('div');
       noPhoto.className = 'no-photo';

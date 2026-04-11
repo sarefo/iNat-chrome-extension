@@ -291,6 +291,25 @@
       font-size: 12px;
       background: #eee;
     }
+    .reload-btn {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,.45);
+      color: #fff;
+      font-size: 14px;
+      line-height: 22px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 3;
+      padding: 0;
+      opacity: 0.75;
+      transition: opacity 0.15s;
+    }
+    .reload-btn:hover { opacity: 1; background: rgba(0,0,0,.7); }
+    .reload-btn.loaded { display: none; }
 
     .sex-overlay {
       position: absolute;

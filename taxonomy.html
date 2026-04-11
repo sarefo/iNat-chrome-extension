@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>iNat Taxonomy Browser</title>
+  <link rel="icon" href="iNat-favicon-orange.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      background: #f5f5f5;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: #37474F;
+      color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,.3);
+      flex-wrap: wrap;
+      min-height: 42px;
+    }
+    .toolbar-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 4px;
+      background: #546E7A;
+      color: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .toolbar-btn:hover { background: #607D8B; }
+    .toolbar-btn.active { background: #388E3C; }
+
+    /* ── Breadcrumb ── */
+    #breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      flex-wrap: nowrap;
+    }
+    .crumb {
+      color: #80CBC4;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 13px;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .crumb:hover { text-decoration: underline; }
+    .crumb.current { color: #fff; cursor: default; font-weight: 600; }
+    .crumb:hover.current { text-decoration: none; }
+    .crumb-sep { color: #546E7A; font-size: 11px; }
+
+    /* ── Rank filter chips ── */
+    #rank-filter-bar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      background: #ECEFF1;
+      border-bottom: 1px solid #CFD8DC;
+    }
+    .rank-chip {
+      padding: 2px 9px;
+      border-radius: 12px;
+      border: 2px solid var(--rank-color, #888);
+      background: var(--rank-color, #888);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .rank-chip.off {
+      background: transparent;
+      color: var(--rank-color, #888);
+      opacity: 0.7;
+    }
+
+    /* ── View controls (overlay toggle + sort) ── */
+    #view-controls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .view-btn {
+      padding: 2px 9px;
+      border-radius: 12px;
+      border: 2px solid #90A4AE;
+      background: transparent;
+      color: #78909C;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .view-btn.active {
+      background: #546E7A;
+      border-color: #546E7A;
+      color: #fff;
+    }
+    .sort-group {
+      display: flex;
+      border: 2px solid #90A4AE;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .sort-btn {
+      padding: 2px 9px;
+      border: none;
+      border-right: 1px solid #90A4AE;
+      background: transparent;
+      color: #78909C;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sort-btn:last-child { border-right: none; }
+    .sort-btn.active { background: #546E7A; color: #fff; }
+
+    /* Photo label overlay toggle */
+    body.overlay-off .card-info { display: none; }
+
+    /* ── Body layout (below toolbar + rank bar) ── */
+    #body-layout {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ── Main scroll area ── */
+    #main-area {
+      flex: 1;
+      overflow-y: auto;
+      min-width: 0;
+    }
+
+    /* ── Photo grid ── */
+    #grid-container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      padding: 12px;
+    }
+
+    #grid-loading {
+      padding: 24px 12px;
+      text-align: center;
+      color: #78909C;
+    }
+    #grid-empty {
+      padding: 24px 12px;
+      text-align: center;
+      color: #90A4AE;
+    }
+
+    /* ── Photo card ── */
+    .taxon-card {
+      border: 3px solid var(--rank-color, #888);
+      border-radius: 3px;
+      background: #ccc;
+      aspect-ratio: 1 / 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .taxon-card:hover { filter: brightness(1.08); }
+    .taxon-card.done { opacity: 0.45; }
+
+    .taxon-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .taxon-card .no-photo {
+      width: 100%;
+      height: 100%;
+      background: #CFD8DC;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #90A4AE;
+      font-size: 11px;
+      text-align: center;
+      padding: 6px;
+    }
+
+    /* Done overlay */
+    .done-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      color: #81C784;
+      pointer-events: none;
+    }
+
+    /* Bottom info bar */
+    .card-info {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,.6);
+      padding: 3px 5px 3px 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 22px;
+    }
+    .card-info .rank-badge {
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .card-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      color: #fff;
+      font-style: italic;
+    }
+    .card-counts {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+    }
+    .card-obs-count {
+      font-size: 9px;
+      color: #B0BEC5;
+      white-space: nowrap;
+    }
+    .unannotated-count {
+      font-size: 9px;
+      font-weight: 700;
+      color: #FFB74D;
+      white-space: nowrap;
+    }
+
+    /* Card action buttons (revealed on hover) */
+    .card-actions {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      background: rgba(0,0,0,.55);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .taxon-card:hover .card-actions { opacity: 1; }
+    .card-btn {
+      flex: 1;
+      padding: 3px 1px;
+      border: none;
+      border-radius: 2px;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      font-size: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-btn:hover { background: rgba(255,255,255,.35); }
+
+    /* Load-more card */
+    .load-more-card {
+      aspect-ratio: 1 / 1;
+      border: 2px dashed #B0BEC5;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #78909C;
+      font-size: 12px;
+      text-align: center;
+      padding: 8px;
+      background: #fff;
+    }
+    .load-more-card:hover { background: #ECEFF1; }
+
+    /* ── Side tree panel (right) ── */
+    #tree-panel {
+      width: 33.33%;
+      min-width: 200px;
+      max-width: 420px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      border-left: 2px solid #CFD8DC;
+      background: #FAFAFA;
+    }
+    .taxon-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-bottom: 1px solid #EEEEEE;
+      padding-left: calc(10px + var(--indent, 0) * 18px);
+      cursor: pointer;
+    }
+    .taxon-row:hover { background: #E8F5E9; }
+    .taxon-row.tree-current { background: #E3F2FD; font-weight: 600; }
+    .expand-btn {
+      width: 14px; min-width: 14px;
+      text-align: center;
+      color: #78909C;
+      font-size: 9px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .rank-badge {
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .sci-name { font-style: italic; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .common-name { color: #90A4AE; font-size: 11px; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+    .tree-obs-count { color: #B0BEC5; font-size: 10px; white-space: nowrap; }
+    .tree-unannotated { color: #F57C00; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .loading-row { padding: 3px 8px; color: #90A4AE; font-size: 11px; }
+    .taxon-row.done { opacity: 0.4; }
+    .sci-name { cursor: pointer; }
+    .sci-name:hover { text-decoration: underline; }
+    .tree-inat-btn {
+      flex-shrink: 0;
+      padding: 1px 5px;
+      border: 1px solid #90A4AE;
+      border-radius: 3px;
+      background: transparent;
+      color: #546E7A;
+      font-size: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tree-inat-btn:hover { background: #E3F2FD; border-color: #42A5F5; color: #1565C0; }
+    .load-more-row { padding: 3px 8px; }
+    .load-more-row button { background: none; border: 1px dashed #90A4AE; border-radius: 3px; color: #546E7A; cursor: pointer; padding: 1px 7px; font-size: 11px; }
+    .load-more-row button:hover { background: #ECEFF1; }
+  </style>
+</head>
+<body>
+
+  <div id="toolbar">
+    <button id="btn-back" class="toolbar-btn">↑ Up</button>
+    <div id="breadcrumb"></div>
+    <button id="btn-tree-toggle" class="toolbar-btn">🌿 Tree</button>
+  </div>
+
+  <div id="rank-filter-bar"><div id="view-controls"></div></div>
+
+  <div id="body-layout">
+    <div id="main-area">
+      <div id="grid-loading" style="display:none">Loading…</div>
+      <div id="grid-empty"   style="display:none">No subtaxa with observations found.</div>
+      <div id="grid-container"></div>
+    </div>
+
+    <div id="tree-panel" style="display:none"></div>
+  </div>
+
+  <script src="taxonomy.js"></script>
+</body>
+</html>
