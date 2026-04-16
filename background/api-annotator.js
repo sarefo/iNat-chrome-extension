@@ -36,7 +36,7 @@ const NYMPH_TAXON_IDS = new Set([
 // Returns 6 (Larva), 5 (Nymph), or 8 (Juvenile).
 async function resolveJuvenileLifeStage(obsId) {
   try {
-    const resp = await fetch(`${API_BASE}/observations/${obsId}?fields=taxon`);
+    const resp = await fetch(`${API_BASE}/observations/${obsId}?fields=taxon`, { signal: AbortSignal.timeout(30000) });
     if (!resp.ok) return 8;
     const data = await resp.json();
     const taxon = data.results?.[0]?.taxon;
@@ -111,7 +111,8 @@ async function postAnnotation(jwt, obsId, attrId, valueId) {
         controlled_attribute_id: attrId,
         controlled_value_id: valueId
       }
-    })
+    }),
+    signal: AbortSignal.timeout(30000)
   });
 
   if (response.status === 422) {
@@ -218,7 +219,8 @@ export async function postObservationFieldViaApi(obsId, fieldId, value, jwt) {
         observation_field_id: fieldId,
         value: String(value)
       }
-    })
+    }),
+    signal: AbortSignal.timeout(30000)
   });
 
   if (response.status === 422) return true; // already set — treat as success

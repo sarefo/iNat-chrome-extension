@@ -113,6 +113,7 @@ export async function processQueuedObservations(queueIds, jwt) {
       if (error.isCancelled) {
         await new Promise(resolve => chrome.storage.local.remove('innat_cancel_current_queue', resolve));
         results.push({ queueId, cancelled: true });
+        break;
       } else {
         console.error(`Error processing queue ${queue.id}:`, error);
         results.push({ queueId, success: false, error: error.message });
