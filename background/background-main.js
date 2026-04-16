@@ -64,7 +64,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       processQueuedObservations(request.queueIds, request.jwt)
         .then(r => sendResponse({ success: true, ...r }))
         .catch(e => sendResponse({ success: false, error: e.message }))
-        .finally(() => { if (queueGen === gen) queueProcessingActive = false; });
+        .finally(() => { queueProcessingActive = false; });
     };
     if (queueProcessingActive) {
       chrome.storage.local.set({ innat_cancel_current_queue: true }, () => {
