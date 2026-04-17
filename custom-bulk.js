@@ -1413,8 +1413,7 @@ async function init() {
             .then(json => {
               const t = json.results && json.results[0];
               if (t) {
-                const name = t.preferred_common_name || t.name;
-                setTaxonLink(`${name} (${taxonId})`);
+                setTaxonLink(`${t.name} (${taxonId})`);
               }
             })
             .catch(() => {});

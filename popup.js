@@ -113,24 +113,56 @@ document.addEventListener('DOMContentLoaded', function() {
       const url = tabs[0]?.url || '';
       let taxonId = null, taxonName = null;
       // Taxon page: /taxa/12345 or /taxa/12345-some-name
-      const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)(?:-([^/?#]+))?/);
+      const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)/);
       if (taxaMatch) {
         taxonId = taxaMatch[1];
-        taxonName = taxaMatch[2] ? taxaMatch[2].replace(/-/g, ' ') : null;
+        // Don't extract taxonName from URL slug; let the taxonomy page fetch the actual scientific name
+        taxonName = null;
       }
       // Observations list with taxon_id param
       if (!taxonId && url.includes('inaturalist.org/observations')) {
         try { taxonId = new URL(url).searchParams.get('taxon_id'); } catch { /* ignore */ }
+      }
+      // Single observation page: /observations/12345
+      if (!taxonId) {
+        const obsMatch = url.match(/inaturalist\.org\/observations\/(\d+)/);
+        if (obsMatch) {
+          statusDiv.textContent = 'Loading observation...';
+          statusDiv.style.color = 'gray';
+          const obsId = obsMatch[1];
+          fetch(`https://api.inaturalist.org/v1/observations/${obsId}`)
+            .then(r => r.json())
+            .then(json => {
+              const obs = json.results?.[0];
+              if (obs?.taxon?.id) {
+                taxonId = obs.taxon.id;
+                taxonName = obs.taxon.name;
+                openTaxonomy();
+              } else {
+                statusDiv.textContent = 'No taxon found in observation';
+                statusDiv.style.color = 'red';
+              }
+            })
+            .catch(() => {
+              statusDiv.textContent = 'Failed to fetch observation';
+              statusDiv.style.color = 'red';
+            });
+          return;
+        }
       }
       if (!taxonId) {
         statusDiv.textContent = 'Must be on an iNat taxon or observations page';
         statusDiv.style.color = 'red';
         return;
       }
-      const params = new URLSearchParams({ taxon_id: taxonId });
-      if (taxonName) params.set('taxon_name', taxonName);
-      chrome.tabs.create({ url: chrome.runtime.getURL(`taxonomy.html?${params}`) });
-      window.close();
+      openTaxonomy();
+
+      function openTaxonomy() {
+        const params = new URLSearchParams({ taxon_id: taxonId });
+        if (taxonName) params.set('taxon_name', taxonName);
+        chrome.tabs.create({ url: chrome.runtime.getURL(`taxonomy.html?${params}`) });
+        window.close();
+      }
     });
   });
 
