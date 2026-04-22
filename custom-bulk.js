@@ -421,6 +421,7 @@ ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
           toast.textContent = `✗ Error: ${chrome.runtime.lastError.message}`;
         } else if (response && response.success) {
           toast.textContent = `✓ Annotated: ${label}`;
+          addAnnotationsToCard(id, type);
         } else {
           toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
         }
@@ -583,6 +584,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
             toast.textContent = `✗ Error: ${chrome.runtime.lastError.message}`;
           } else if (response && response.success) {
             toast.textContent = `✓ ${label}: obs ${id}`;
+            addAnnotationsToCard(id, type);
           } else {
             toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
           }
@@ -654,6 +656,52 @@ document.getElementById('help-overlay').addEventListener('click', e => {
 // ---------------------------------------------------------------------------
 // Queue
 // ---------------------------------------------------------------------------
+
+// Maps quickAnnotateObs mode keys to the {attrId, valId} pairs they set
+// (mirrors ANNOTATION_CONFIGS in api-annotator.js — keep in sync)
+const MODE_ANNOTATIONS = {
+  'adult-alive':             [{a:1,v:2},{a:17,v:18},{a:22,v:24}],
+  'adult-cannot':            [{a:1,v:2},{a:17,v:20},{a:22,v:24}],
+  'adult-dead':              [{a:1,v:2},{a:17,v:19},{a:22,v:24}],
+  'juvenile':                [{a:1,v:8},{a:17,v:18},{a:22,v:24}],
+  'juvenile-cannot':         [{a:1,v:8},{a:17,v:20},{a:22,v:24}],
+  'juvenile-dead':           [{a:1,v:8},{a:17,v:19},{a:22,v:24}],
+  'dead-only':               [{a:17,v:19},{a:22,v:24}],
+  'molt':                    [{a:17,v:19},{a:22,v:28}],
+  'age-unknown':             [{a:17,v:18},{a:22,v:24}],
+  'cannot-only':             [{a:17,v:20},{a:22,v:24}],
+  'plant-flowers':           [{a:12,v:13},{a:36,v:38}],
+  'plant-fruits':            [{a:12,v:14},{a:36,v:38}],
+  'plant-no-flowers-fruits': [{a:12,v:21},{a:36,v:38}],
+  'sex-female':              [{a:9,v:10}],
+  'sex-male':                [{a:9,v:11}],
+  'eop-construction':        [{a:22,v:35}],
+  'eop-egg':                 [{a:22,v:30}],
+  'eop-gall':                [{a:22,v:29}],
+  'eop-molt':                [{a:22,v:28}],
+  'eop-track':               [{a:22,v:26}],
+  'life-pupa':               [{a:1,v:4}],
+};
+
+function addAnnotationsToCard(id, mode) {
+  const pairs = MODE_ANNOTATIONS[mode];
+  if (!pairs) return;
+  const obs = allObservations.find(o => o.id === id);
+  if (!obs) return;
+  if (!obs.annotations) obs.annotations = [];
+  for (const { a, v } of pairs) {
+    if (!obs.annotations.some(x => x.attrId === a && x.valId === v)) {
+      obs.annotations.push({ attrId: a, valId: v });
+    }
+  }
+  const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+  if (card) {
+    const existing = card.querySelector('.ann-badges');
+    if (existing) card.removeChild(existing);
+    const badges = buildAnnotationBadges(obs.annotations, obs.qualityGrade, id);
+    if (badges) card.appendChild(badges);
+  }
+}
 
 // Existing annotation badge display (keyed by "attrId_valId")
 const EXISTING_ANNOTATION_BADGE = {
@@ -1116,6 +1164,7 @@ function applyZoneToFocusedCards(zoneEl, isCtrl) {
     ids.forEach(id => {
       ctrlDeselectCard(id);
       chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type });
+      addAnnotationsToCard(id, type);
     });
     toast.textContent = `✓ ${count}× ${label}`;
     setTimeout(() => toast.classList.remove('active'), toastDelay);
@@ -1144,7 +1193,10 @@ function applyZoneToFocusedCards(zoneEl, isCtrl) {
   } else {
     toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
     toast.classList.add('active');
-    ids.forEach(id => chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type }));
+    ids.forEach(id => {
+      chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type });
+      addAnnotationsToCard(id, type);
+    });
     toast.textContent = `✓ ${count}× ${label}`;
     setTimeout(() => toast.classList.remove('active'), toastDelay);
   }
