@@ -85,8 +85,12 @@ export async function processQueuedObservations(queueIds, jwt) {
       continue;
     }
 
-    // Skip observations already processed (crash recovery)
-    const alreadyDone = new Set(queue.processedObservations || []);
+    // Skip observations already processed only for crash recovery:
+    // resetStuckQueues converts crashed 'processing' → 'pending' with processedObservations intact.
+    // Completed queues re-run by the user should start fresh.
+    const alreadyDone = queue.status === 'pending'
+      ? new Set(queue.processedObservations || [])
+      : new Set();
     const remaining = queue.observations.filter(id => !alreadyDone.has(id));
 
     console.log(`Processing queue ${queue.id}: ${remaining.length} remaining (${alreadyDone.size} already done) with mode ${queue.annotationType}`);

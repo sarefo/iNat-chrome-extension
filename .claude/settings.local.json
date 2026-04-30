@@ -30,7 +30,8 @@
       "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/taxonomy.js)",
       "Bash(ls:*)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__query-docs"
+      "mcp__context7__query-docs",
+      "Bash(git -C /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension log --oneline --all)"
     ],
     "deny": []
   }
