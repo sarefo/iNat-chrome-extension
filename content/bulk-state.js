@@ -37,7 +37,8 @@ function getAnnotationDisplayName(mode) {
     case 'adult-dead': return '💀 Adult Dead';
     case 'juvenile': return '🐛 Juvenile';
     case 'juvenile-dead': return '💀 Juvenile Dead';
-    case 'age-unknown': return '❓ Age Unknown';
+    case 'age-unknown': return '🟢 Alive';
+    case 'dead-only': return '💀 Dead';
     case 'plant-flowers': return '🌼 Flowers + Green Leaves';
     case 'plant-fruits': return '🍇 Fruits + Green Leaves';
     case 'plant-no-flowers-fruits': return '🍇❌ No Flowers/Fruits + Green Leaves';

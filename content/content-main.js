@@ -68,6 +68,7 @@ const ANNOTATION_DISPLAY_LABELS = {
   'juvenile-dead':           { 'Life Stage': 'Juvenile', 'Alive or Dead': 'Dead',  'Evidence of Presence': 'Organism' },
   'molt':                    {                           'Alive or Dead': 'Dead',  'Evidence of Presence': 'Molt' },
   'age-unknown':             {                           'Alive or Dead': 'Alive', 'Evidence of Presence': 'Organism' },
+  'dead-only':               {                           'Alive or Dead': 'Dead',  'Evidence of Presence': 'Organism' },
   'plant-flowers':           { 'Flowers': 'Flowers',          'Fruit': 'Flowers',          'Leaves': 'Green Leaves' },
   'plant-fruits':            { 'Flowers': 'Fruits or Seeds',  'Fruit': 'Fruits or Seeds',  'Leaves': 'Green Leaves' },
   'plant-no-flowers-fruits': { 'Flowers': 'No Flowers or Fruits', 'Fruit': 'No Flowers or Fruits', 'Leaves': 'Green Leaves' },
