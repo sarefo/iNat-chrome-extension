@@ -266,17 +266,11 @@ function buildRankFilterBar() {
   const lowerRanks = RANK_ORDER.filter(r => (RANK_INDEX[r] ?? 99) > rootIdx);
   if (!lowerRanks.length) return;
 
-  // Initialise visibleRanks: only the coarsest rank among direct children starts ON.
-  // e.g. if Hypenodinae has tribes + unassigned genera, only "tribe" is ON initially.
+  // Initialise visibleRanks: all ranks present among direct children start ON.
+  // Direct children at mixed ranks (e.g. a subtribe + genera directly under a tribe)
+  // must all be visible — hiding the finer ones would silently drop real observations.
   const directChildren = rootNode.children.filter(c => !c.isLoadMore);
-  const minChildRankIdx = directChildren.length
-    ? Math.min(...directChildren.map(c => RANK_INDEX[c.rank] ?? 99))
-    : 99;
-  visibleRanks = new Set(
-    directChildren
-      .filter(c => (RANK_INDEX[c.rank] ?? 99) === minChildRankIdx)
-      .map(c => c.rank)
-  );
+  visibleRanks = new Set(directChildren.map(c => c.rank).filter(Boolean));
 
   const viewControls = document.getElementById('view-controls');
   for (const rank of lowerRanks) {
