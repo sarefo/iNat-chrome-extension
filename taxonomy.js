@@ -25,6 +25,7 @@ const LEAF_RANKS = new Set(['species','hybrid','genushybrid','subspecies','varie
 // ── State ──────────────────────────────────────────────────────────────────────
 
 let rootNode = null;
+let selfNode = null; // synthetic card for observations at the root taxon's own rank
 const nodeById = new Map();
 let visibleRanks = new Set();
 const doneIds = new Set();
@@ -70,6 +71,7 @@ async function init() {
 
 async function setRoot(node) {
   rootNode = node;
+  selfNode = null;
 
   if (!rootNode.childrenLoaded) {
     showGridLoading(true);
@@ -84,6 +86,7 @@ async function setRoot(node) {
   if (treeVisible) renderTree();
 
   fetchUnannCounts(rootNode.children.filter(c => !c.isLoadMore));
+  fetchSelfNode(rootNode);
 }
 
 async function navigateUp() {
@@ -204,6 +207,48 @@ async function loadMoreChildren(placeholder) {
     if (treeVisible) renderTree();
     fetchUnannCounts(newNodes);
   } catch (e) { console.warn('[taxonomy] loadMoreChildren failed', e); }
+}
+
+// Fetch observations identified only to the root taxon's own rank (not refined to children).
+// If any exist, creates a synthetic selfNode card pinned at position 0 in the grid.
+async function fetchSelfNode(node) {
+  try {
+    const resp = await fetch(
+      `https://api.inaturalist.org/v1/observations?taxon_id=${node.id}&lrank=${node.rank}&hrank=${node.rank}&per_page=1`
+    );
+    const json = await resp.json();
+    const count = json.total_results ?? 0;
+    if (count === 0) return;
+    selfNode = {
+      isSelf: true,
+      id: node.id,
+      name: node.name,
+      rank: node.rank,
+      commonName: node.commonName,
+      photoUrl: node.photoUrl,
+      obsCount: count,
+      unannCount: null,
+      parentId: null,
+      children: [],
+      childrenLoaded: true,
+      hasChildren: false,
+    };
+    renderGrid();
+    fetchSelfUnannCount(selfNode);
+  } catch {}
+}
+
+async function fetchSelfUnannCount(sNode) {
+  try {
+    const resp = await fetch(
+      `https://api.inaturalist.org/v1/observations?taxon_id=${sNode.id}&lrank=${sNode.rank}&hrank=${sNode.rank}&without_term_id=17&per_page=1`
+    );
+    const json = await resp.json();
+    sNode.unannCount = json.total_results ?? 0;
+    updateCountsInDOM(sNode);
+    renderGrid();
+    if (treeVisible) renderTree();
+  } catch {}
 }
 
 async function fetchTaxa(qs) {
@@ -372,6 +417,8 @@ function renderGrid() {
 // parentInlineExpanded=true means direct children are shown regardless of visibleRanks.
 function flattenTree(node, parentInlineExpanded = false) {
   const result = [];
+  // Prepend self-node (observations at the root taxon's exact rank) at position 0.
+  if (node === rootNode && selfNode) result.push(selfNode);
   for (const child of sortedChildren(node)) {
     if (child.isLoadMore) { result.push(child); continue; }
     if (visibleRanks.has(child.rank) || parentInlineExpanded) result.push(child);
@@ -402,7 +449,7 @@ function sortedChildren(node) {
 function buildCard(node) {
   const done = doneIds.has(node.id);
   const card = document.createElement('div');
-  card.className = 'taxon-card' + (done ? ' done' : '');
+  card.className = 'taxon-card' + (done ? ' done' : '') + (node.isSelf ? ' self-card' : '');
   card.dataset.id = node.id;
   card.style.setProperty('--rank-color', RANK_COLOR[node.rank] ?? '#888');
 
@@ -437,10 +484,15 @@ function buildCard(node) {
     b.addEventListener('click', e => { e.stopPropagation(); handler(); });
     return b;
   };
-  actions.appendChild(mkBtn('⊙ root',  'Set as root taxon',         () => setRoot(node)));
-  actions.appendChild(mkBtn(node.inlineExpanded ? '▴ sub' : '▾ sub', 'Expand/collapse subtaxa inline', () => expandInline(node)));
-  actions.appendChild(mkBtn('→ bulk',  'Open in bulk mode (new tab)', () => openBulkForTaxon(node)));
-  actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist',        () => window.open(`https://www.inaturalist.org/taxa/${node.id}`, '_blank', 'noopener')));
+  if (node.isSelf) {
+    actions.appendChild(mkBtn('→ bulk',  `Open ${node.rank}-level observations in bulk mode`, () => openBulkForTaxon(node)));
+    actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist', () => window.open(`https://www.inaturalist.org/taxa/${node.id}`, '_blank', 'noopener')));
+  } else {
+    actions.appendChild(mkBtn('⊙ root',  'Set as root taxon',         () => setRoot(node)));
+    actions.appendChild(mkBtn(node.inlineExpanded ? '▴ sub' : '▾ sub', 'Expand/collapse subtaxa inline', () => expandInline(node)));
+    actions.appendChild(mkBtn('→ bulk',  'Open in bulk mode (new tab)', () => openBulkForTaxon(node)));
+    actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist',        () => window.open(`https://www.inaturalist.org/taxa/${node.id}`, '_blank', 'noopener')));
+  }
   card.appendChild(actions);
 
   // Bottom info bar
@@ -451,6 +503,12 @@ function buildCard(node) {
   name.className = 'card-name';
   name.textContent = node.name;
   name.title = node.commonName || node.name;
+  if (node.isSelf) {
+    const badge = document.createElement('span');
+    badge.className = 'self-rank-badge';
+    badge.textContent = node.rank + ' only';
+    name.appendChild(badge);
+  }
   info.appendChild(name);
 
   const counts = document.createElement('div');
@@ -674,14 +732,16 @@ function openBulkForTaxon(node) {
   renderGrid();
   if (treeVisible) renderTree();
 
-  const searchUrl = `https://www.inaturalist.org/observations?taxon_id=${node.id}&without_term_id=17`;
+  const searchUrl = node.isSelf
+    ? `https://www.inaturalist.org/observations?taxon_id=${node.id}&lrank=${node.rank}&hrank=${node.rank}&without_term_id=17`
+    : `https://www.inaturalist.org/observations?taxon_id=${node.id}&without_term_id=17`;
   chrome.runtime.sendMessage({
     action: 'startCustomBulkMode',
     searchUrl,
     annotationType: 'adult-alive',
     jwt: null,
     sourceTabId: 0,  // 0 is falsy → background won't close this tab
-    taxonRank: node.rank  // Pass rank for exact-rank-only filtering
+    taxonRank: node.isSelf ? null : node.rank
   }, () => { void chrome.runtime.lastError; });
 }
 
