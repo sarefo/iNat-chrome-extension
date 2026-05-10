@@ -31,7 +31,16 @@
       "Bash(ls:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
-      "Bash(git -C /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension log --oneline --all)"
+      "Bash(git -C /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension log --oneline --all)",
+      "Bash(awk '/^\\(function|async function\\)/{name=$0; start=NR} /^}$/{if\\(start\\) print \\(NR-start+1\\) \" lines: \" name \" \\(line \" start \"\\)\"; start=0}' /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/content/bulk-ui.js)",
+      "Bash(awk '/^\\(function|async function\\)/{name=$0; start=NR} /^}$/{if\\(start\\) print \\(NR-start+1\\) \" lines: \" name \" \\(line \" start \"\\)\"; start=0}' /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/custom-bulk.js /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/taxonomy.js)",
+      "Bash(node -c /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/shared/annotation-defs.js)",
+      "Bash(node -c /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/background/queue-manager.js)",
+      "Bash(node -c /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/background/obs-fetcher.js)",
+      "Bash(node -c /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/content/bulk-state.js)",
+      "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/background/background-main.js)",
+      "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/background/api-annotator.js)",
+      "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/custom-bulk.js)"
     ],
     "deny": []
   }
