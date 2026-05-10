@@ -1,5 +1,3 @@
-import { processBulkObservationsViaApi } from './api-annotator.js';
-
 // Queue storage helpers
 async function getQueues() {
   return new Promise(resolve => {
@@ -54,8 +52,8 @@ async function setPendingQueueIds(ids) {
   });
 }
 
-// Process queued observations sequentially (exported for background-main.js)
-export async function processQueuedObservations(queueIds, jwt) {
+// Process queued observations sequentially (called from background-main.js)
+async function processQueuedObservations(queueIds, jwt) {
   // Clear any stale cancel signal left over from a previous run
   await new Promise(resolve => chrome.storage.local.remove('innat_cancel_current_queue', resolve));
   await resetStuckQueues();

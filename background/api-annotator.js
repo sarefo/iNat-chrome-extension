@@ -1,3 +1,4 @@
+// INAT_ANNOTATION_CONFIGS and INAT_JUVENILE_MODES come from shared/annotation-defs.js
 const API_BASE = 'https://api.inaturalist.org/v1';
 const RATE_LIMIT_MS = 150;
 
@@ -49,34 +50,6 @@ async function resolveJuvenileLifeStage(obsId) {
   } catch (_) { /* fall through */ }
   return 8;
 }
-
-// Modes that contain a juvenile Life Stage annotation (v:8) that needs resolving
-const JUVENILE_MODES = new Set(['juvenile', 'juvenile-cannot', 'juvenile-dead']);
-
-// Each entry: { a: controlled_attribute_id, v: controlled_value_id }
-const ANNOTATION_CONFIGS = {
-  'adult-alive':             [{a:1,v:2},{a:17,v:18},{a:22,v:24}],
-  'adult-cannot':            [{a:1,v:2},{a:17,v:20},{a:22,v:24}],
-  'adult-dead':              [{a:1,v:2},{a:17,v:19},{a:22,v:24}],
-  'juvenile':                [{a:1,v:8},{a:17,v:18},{a:22,v:24}],
-  'juvenile-cannot':         [{a:1,v:8},{a:17,v:20},{a:22,v:24}],
-  'juvenile-dead':           [{a:1,v:8},{a:17,v:19},{a:22,v:24}],
-  'dead-only':               [{a:17,v:19},{a:22,v:24}],
-  'molt':                    [{a:17,v:19},{a:22,v:28}],
-  'age-unknown':             [{a:17,v:18},{a:22,v:24}],
-  'cannot-only':             [{a:17,v:20},{a:22,v:24}],
-  'plant-flowers':           [{a:12,v:13},{a:36,v:38}],
-  'plant-fruits':            [{a:12,v:14},{a:36,v:38}],
-  'plant-no-flowers-fruits': [{a:12,v:21},{a:36,v:38}],
-  'sex-female':              [{a:9,v:10}],
-  'sex-male':                [{a:9,v:11}],
-  'eop-construction':        [{a:22,v:35}],
-  'eop-egg':                 [{a:22,v:30}],
-  'eop-gall':                [{a:22,v:29}],
-  'eop-molt':                [{a:22,v:28}],
-  'eop-track':               [{a:22,v:26}],
-  'life-pupa':               [{a:1,v:4}],
-};
 
 // Query the first open iNat tab and extract its JWT directly from the page meta tag
 async function getJwtFromInatTab() {
@@ -136,12 +109,12 @@ async function postAnnotation(jwt, obsId, attrId, valueId) {
 // Annotate a single observation via API for the given mode
 // Returns { observationId, success, results[] }
 async function annotateObservationViaApi(obsId, mode, jwt) {
-  let config = ANNOTATION_CONFIGS[mode];
+  let config = INAT_ANNOTATION_CONFIGS[mode];
   if (!config) {
     throw new Error(`Unknown annotation mode: ${mode}`);
   }
 
-  if (JUVENILE_MODES.has(mode)) {
+  if (INAT_JUVENILE_MODES.has(mode)) {
     const lifeStageValue = await resolveJuvenileLifeStage(obsId);
     if (lifeStageValue !== 8) {
       config = config.map(entry => entry.a === 1 ? { ...entry, v: lifeStageValue } : entry);
@@ -173,16 +146,16 @@ async function annotateObservationViaApi(obsId, mode, jwt) {
 
 // Annotate a single observation with all annotations fired in parallel
 // Annotate a single observation, fetching JWT automatically from the open iNat tab
-export async function quickAnnotateSingleObs(obsId, mode) {
+async function quickAnnotateSingleObs(obsId, mode) {
   const jwt = await getJwtFromInatTab();
   return annotateSingleObsViaApi(obsId, mode, jwt);
 }
 
-export async function annotateSingleObsViaApi(obsId, mode, jwt) {
-  let config = ANNOTATION_CONFIGS[mode];
+async function annotateSingleObsViaApi(obsId, mode, jwt) {
+  let config = INAT_ANNOTATION_CONFIGS[mode];
   if (!config) throw new Error(`Unknown annotation mode: ${mode}`);
 
-  if (JUVENILE_MODES.has(mode)) {
+  if (INAT_JUVENILE_MODES.has(mode)) {
     const lifeStageValue = await resolveJuvenileLifeStage(obsId);
     if (lifeStageValue !== 8) {
       config = config.map(entry => entry.a === 1 ? { ...entry, v: lifeStageValue } : entry);
@@ -203,7 +176,7 @@ export async function annotateSingleObsViaApi(obsId, mode, jwt) {
 
 // POST an observation field value (e.g. "Behavior: mating = yes", field ID 6637)
 // Returns true on success, true on 422 (already set), throws on auth error
-export async function postObservationFieldViaApi(obsId, fieldId, value, jwt) {
+async function postObservationFieldViaApi(obsId, fieldId, value, jwt) {
   if (!jwt) {
     jwt = await getJwtFromInatTab();
   }
@@ -241,7 +214,7 @@ export async function postObservationFieldViaApi(obsId, fieldId, value, jwt) {
 // Process multiple observations via API (exported for background-main.js)
 // jwt is passed directly from the content script; falls back to tab query if not provided
 // onProgress(obsId) is called after each observation completes (optional)
-export async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress, progressSender = null, shouldCancel = null) {
+async function processBulkObservationsViaApi(observations, mode, sourceTabId, jwt, onProgress, progressSender = null, shouldCancel = null) {
   const startTime = Date.now();
   if (!jwt) {
     jwt = await getJwtFromInatTab(); // fallback for queue processing

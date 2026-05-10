@@ -6,8 +6,7 @@
   "permissions": ["activeTab", "storage", "tabs", "scripting"],
   "host_permissions": ["https://api.inaturalist.org/*", "*://*.inaturalist.org/*"],
   "background": {
-    "service_worker": "background/background-main.js",
-    "type": "module"
+    "service_worker": "background/background-main.js"
   },
   "action": {
     "default_popup": "popup.html",
@@ -17,6 +16,7 @@
   "content_scripts": [{
     "matches": ["*://*.inaturalist.org/*"],
     "js": [
+      "shared/annotation-defs.js",
       "content/bulk-storage.js",
       "content/bulk-state.js",
       "content/bulk-shift-overlay.js",
@@ -30,6 +30,7 @@
   "web_accessible_resources": [{
     "resources": [
       "iNat-favicon-orange.png",
+      "shared/annotation-defs.js",
       "content/bulk-storage.js",
       "content/bulk-state.js",
       "content/bulk-shift-overlay.js",

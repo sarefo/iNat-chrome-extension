@@ -76,7 +76,7 @@ async function fetchBatch(params, startPage, endPage, existingObs) {
 
 // Fetch the first batch of observations for the given iNat page URL.
 // Opens custom-bulk.html immediately after the first page arrives.
-export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourceTabId, taxonRank) {
+async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourceTabId, taxonRank) {
   await chrome.storage.local.set({
     innat_custom_bulk: {
       status: 'loading',
@@ -122,7 +122,7 @@ export async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourc
 }
 
 // Fetch the next batch of API pages, appending to existing observations.
-export async function fetchMoreObservations(searchUrl) {
+async function fetchMoreObservations(searchUrl) {
   const stored = await chrome.storage.local.get(['innat_custom_bulk']);
   const data = stored.innat_custom_bulk;
   if (!data || data.status !== 'partial') return;

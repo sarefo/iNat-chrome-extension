@@ -1,6 +1,9 @@
-import { processBulkObservationsViaApi, annotateSingleObsViaApi, quickAnnotateSingleObs, postObservationFieldViaApi } from './api-annotator.js';
-import { processQueuedObservations } from './queue-manager.js';
-import { startCustomBulkFetch, fetchMoreObservations } from './obs-fetcher.js';
+importScripts(
+  '../shared/annotation-defs.js',
+  './api-annotator.js',
+  './queue-manager.js',
+  './obs-fetcher.js'
+);
 
 let queueProcessingActive = false;
 let queueGen = 0;

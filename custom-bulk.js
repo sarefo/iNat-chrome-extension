@@ -409,7 +409,7 @@ ctrlOverlayEl.querySelectorAll('.ctrl-zone[data-type]').forEach(zone => {
     clearKbFocus();
     if (!id) return;
     ctrlDeselectCard(id);
-    const label = ANNOTATION_LABELS[type] || type;
+    const label = INAT_ANNOTATION_LABELS[type] || type;
     const toast = document.getElementById('queue-toast');
     const centered = positionToastOnCard(toast, id);
     toast.textContent = `⏳ Annotating: ${label}…`;
@@ -490,18 +490,6 @@ window.addEventListener('blur', () => {
 // Unlike ctrl-mode, shift-mode does NOT deselect the observation.
 // ---------------------------------------------------------------------------
 
-const SHIFT_ANNOTATION_LABELS = {
-  'sex-female':        '♀ Female',
-  'mating':            '❤️ Mating',
-  'sex-male':          '♂ Male',
-  'eop-egg':           '🥚 Egg',
-  'eop-molt':          '🪲 Molt',
-  'life-pupa':         '🐛 Pupa',
-  'eop-construction':  '🏗 Construction',
-  'eop-gall':          '🌿 Gall',
-  'eop-track':         '👣 Track',
-};
-
 let shiftHeld = false;
 let shiftOverlayCardId = null;
 const shiftOverlayEl = document.getElementById('shift-overlay');
@@ -544,7 +532,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
     clearKbFocus();
     if (!id) return;
     // Shift-mode: do NOT deselect the observation
-    const label = SHIFT_ANNOTATION_LABELS[type] || type;
+    const label = INAT_ANNOTATION_LABELS[type] || type;
     const toast = document.getElementById('queue-toast');
     const centeredShift = positionToastOnCard(toast, id);
     toast.textContent = `⏳ Annotating: ${label}…`;
@@ -657,34 +645,8 @@ document.getElementById('help-overlay').addEventListener('click', e => {
 // Queue
 // ---------------------------------------------------------------------------
 
-// Maps quickAnnotateObs mode keys to the {attrId, valId} pairs they set
-// (mirrors ANNOTATION_CONFIGS in api-annotator.js — keep in sync)
-const MODE_ANNOTATIONS = {
-  'adult-alive':             [{a:1,v:2},{a:17,v:18},{a:22,v:24}],
-  'adult-cannot':            [{a:1,v:2},{a:17,v:20},{a:22,v:24}],
-  'adult-dead':              [{a:1,v:2},{a:17,v:19},{a:22,v:24}],
-  'juvenile':                [{a:1,v:8},{a:17,v:18},{a:22,v:24}],
-  'juvenile-cannot':         [{a:1,v:8},{a:17,v:20},{a:22,v:24}],
-  'juvenile-dead':           [{a:1,v:8},{a:17,v:19},{a:22,v:24}],
-  'dead-only':               [{a:17,v:19},{a:22,v:24}],
-  'molt':                    [{a:17,v:19},{a:22,v:28}],
-  'age-unknown':             [{a:17,v:18},{a:22,v:24}],
-  'cannot-only':             [{a:17,v:20},{a:22,v:24}],
-  'plant-flowers':           [{a:12,v:13},{a:36,v:38}],
-  'plant-fruits':            [{a:12,v:14},{a:36,v:38}],
-  'plant-no-flowers-fruits': [{a:12,v:21},{a:36,v:38}],
-  'sex-female':              [{a:9,v:10}],
-  'sex-male':                [{a:9,v:11}],
-  'eop-construction':        [{a:22,v:35}],
-  'eop-egg':                 [{a:22,v:30}],
-  'eop-gall':                [{a:22,v:29}],
-  'eop-molt':                [{a:22,v:28}],
-  'eop-track':               [{a:22,v:26}],
-  'life-pupa':               [{a:1,v:4}],
-};
-
 function addAnnotationsToCard(id, mode) {
-  const pairs = MODE_ANNOTATIONS[mode];
+  const pairs = INAT_ANNOTATION_CONFIGS[mode];
   if (!pairs) return;
   const obs = allObservations.find(o => o.id === id);
   if (!obs) return;
@@ -766,23 +728,6 @@ function buildAnnotationBadges(annotations, qualityGrade, id) {
   return wrap;
 }
 
-const ANNOTATION_LABELS = {
-  'adult-alive':             '🦆 Adult Alive',
-  'adult-cannot':            '❓ Adult Cannot Be Determined',
-  'adult-dead':              '💀 Adult Dead',
-  'juvenile':                '🐛 Juvenile Alive',
-  'juvenile-cannot':         '❓ Juvenile Cannot Be Determined',
-  'juvenile-dead':           '💀 Juvenile Dead',
-  'dead-only':               '💀 Dead',
-  'molt':                    '💀 Molt',
-  'age-unknown':             '🟢 Alive',
-  'cannot-only':             '❓ Cannot Be Determined',
-  'plant-flowers':           '🌼 Flowers',
-  'plant-fruits':            '🍇 Fruits',
-  'plant-no-flowers-fruits': '❌ No Flowers/Fruits',
-  'sex-split':               '⚥ Sex (♀/♂)',
-};
-
 async function addToQueueSexMode() {
   if (femaleIds.size === 0 && maleIds.size === 0) return;
 
@@ -859,7 +804,7 @@ async function addToQueue() {
       if (taxon) taxonPrefix = `${taxon} · `;
     } catch { /* ignore malformed URLs */ }
   }
-  const label = ANNOTATION_LABELS[annotationType] || annotationType;
+  const label = INAT_ANNOTATION_LABELS[annotationType] || annotationType;
   const name = `${taxonPrefix}${label} (${observations.length})`;
 
   const queue = {
@@ -1153,7 +1098,7 @@ function applyZoneToFocusedCards(zoneEl, isCtrl) {
   const type = zoneEl.dataset.type;
   const ids = Array.from(kbFocusedIds);
   const count = ids.length;
-  const label = (isCtrl ? ANNOTATION_LABELS[type] : SHIFT_ANNOTATION_LABELS[type]) || type;
+  const label = INAT_ANNOTATION_LABELS[type] || type;
   const toast = document.getElementById('queue-toast');
   const centered = positionToastOnCard(toast, kbPrimaryId);
   const toastDelay = centered ? 600 : 3000;
