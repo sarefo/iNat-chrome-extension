@@ -40,7 +40,12 @@
       "Bash(node -c /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/content/bulk-state.js)",
       "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/background/background-main.js)",
       "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/background/api-annotator.js)",
-      "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/custom-bulk.js)"
+      "Bash(node --check /mnt/c/Users/stefa/OneDrive/Documents/GitHub/sarefo.github.io/iNat-chrome-extension/custom-bulk.js)",
+      "Bash(node --check shared/bulk-helpers.js)",
+      "Bash(node --check popup.js)",
+      "Bash(node --check custom-bulk.js)",
+      "Bash(node --check taxonomy.js)",
+      "Bash(node --check content/bulk-ui.js)"
     ],
     "deny": []
   }
