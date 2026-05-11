@@ -17,6 +17,7 @@
     "matches": ["*://*.inaturalist.org/*"],
     "js": [
       "shared/annotation-defs.js",
+      "shared/bulk-helpers.js",
       "content/bulk-storage.js",
       "content/bulk-state.js",
       "content/bulk-shift-overlay.js",
@@ -31,6 +32,7 @@
     "resources": [
       "iNat-favicon-orange.png",
       "shared/annotation-defs.js",
+      "shared/bulk-helpers.js",
       "content/bulk-storage.js",
       "content/bulk-state.js",
       "content/bulk-shift-overlay.js",

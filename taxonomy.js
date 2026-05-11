@@ -446,56 +446,32 @@ function sortedChildren(node) {
   });
 }
 
-function buildCard(node) {
-  const done = doneIds.has(node.id);
-  const card = document.createElement('div');
-  card.className = 'taxon-card' + (done ? ' done' : '') + (node.isSelf ? ' self-card' : '');
-  card.dataset.id = node.id;
-  card.style.setProperty('--rank-color', RANK_COLOR[node.rank] ?? '#888');
+function mkBtn(label, title, handler) {
+  const b = document.createElement('button');
+  b.className = 'card-btn';
+  b.textContent = label;
+  b.title = title;
+  b.addEventListener('click', e => { e.stopPropagation(); handler(); });
+  return b;
+}
 
-  if (node.photoUrl) {
-    const img = document.createElement('img');
-    img.src = node.photoUrl;
-    img.alt = node.name;
-    img.loading = 'lazy';
-    card.appendChild(img);
-  } else {
-    const ph = document.createElement('div');
-    ph.className = 'no-photo';
-    ph.textContent = node.name;
-    card.appendChild(ph);
-  }
-
-  if (done) {
-    const ov = document.createElement('div');
-    ov.className = 'done-overlay';
-    ov.textContent = '✓';
-    card.appendChild(ov);
-  }
-
-  // Hover action buttons (top bar)
+function buildCardActions(node) {
   const actions = document.createElement('div');
   actions.className = 'card-actions';
-  const mkBtn = (label, title, handler) => {
-    const b = document.createElement('button');
-    b.className = 'card-btn';
-    b.textContent = label;
-    b.title = title;
-    b.addEventListener('click', e => { e.stopPropagation(); handler(); });
-    return b;
-  };
+  const inatUrl = `https://www.inaturalist.org/taxa/${node.id}`;
   if (node.isSelf) {
-    actions.appendChild(mkBtn('→ bulk',  `Open ${node.rank}-level observations in bulk mode`, () => openBulkForTaxon(node)));
-    actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist', () => window.open(`https://www.inaturalist.org/taxa/${node.id}`, '_blank', 'noopener')));
+    actions.appendChild(mkBtn('→ bulk', `Open ${node.rank}-level observations in bulk mode`, () => openBulkForTaxon(node)));
+    actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist', () => window.open(inatUrl, '_blank', 'noopener')));
   } else {
-    actions.appendChild(mkBtn('⊙ root',  'Set as root taxon',         () => setRoot(node)));
+    actions.appendChild(mkBtn('⊙ root', 'Set as root taxon', () => setRoot(node)));
     actions.appendChild(mkBtn(node.inlineExpanded ? '▴ sub' : '▾ sub', 'Expand/collapse subtaxa inline', () => expandInline(node)));
-    actions.appendChild(mkBtn('→ bulk',  'Open in bulk mode (new tab)', () => openBulkForTaxon(node)));
-    actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist',        () => window.open(`https://www.inaturalist.org/taxa/${node.id}`, '_blank', 'noopener')));
+    actions.appendChild(mkBtn('→ bulk', 'Open in bulk mode (new tab)', () => openBulkForTaxon(node)));
+    actions.appendChild(mkBtn('↗ iNat', 'Open on iNaturalist', () => window.open(inatUrl, '_blank', 'noopener')));
   }
-  card.appendChild(actions);
+  return actions;
+}
 
-  // Bottom info bar
+function buildCardInfo(node) {
   const info = document.createElement('div');
   info.className = 'card-info';
 
@@ -527,8 +503,38 @@ function buildCard(node) {
   counts.appendChild(unannEl);
 
   info.appendChild(counts);
-  card.appendChild(info);
+  return info;
+}
 
+function buildCard(node) {
+  const done = doneIds.has(node.id);
+  const card = document.createElement('div');
+  card.className = 'taxon-card' + (done ? ' done' : '') + (node.isSelf ? ' self-card' : '');
+  card.dataset.id = node.id;
+  card.style.setProperty('--rank-color', RANK_COLOR[node.rank] ?? '#888');
+
+  if (node.photoUrl) {
+    const img = document.createElement('img');
+    img.src = node.photoUrl;
+    img.alt = node.name;
+    img.loading = 'lazy';
+    card.appendChild(img);
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'no-photo';
+    ph.textContent = node.name;
+    card.appendChild(ph);
+  }
+
+  if (done) {
+    const ov = document.createElement('div');
+    ov.className = 'done-overlay';
+    ov.textContent = '✓';
+    card.appendChild(ov);
+  }
+
+  card.appendChild(buildCardActions(node));
+  card.appendChild(buildCardInfo(node));
   return card;
 }
 
@@ -717,8 +723,8 @@ async function expandInline(node) {
 
 async function loadQueuedTaxonIds() {
   try {
-    const data = await new Promise(r => chrome.storage.local.get(['innat_queues'], r));
-    for (const q of (data.innat_queues || [])) {
+    const data = await new Promise(r => chrome.storage.local.get([STORAGE_KEY_QUEUES], r));
+    for (const q of (data[STORAGE_KEY_QUEUES] || [])) {
       try {
         const tid = q.searchUrl ? new URL(q.searchUrl).searchParams.get('taxon_id') : null;
         if (tid) doneIds.add(Number(tid));
@@ -735,14 +741,14 @@ function openBulkForTaxon(node) {
   const searchUrl = node.isSelf
     ? `https://www.inaturalist.org/observations?taxon_id=${node.id}&lrank=${node.rank}&hrank=${node.rank}&without_term_id=17`
     : `https://www.inaturalist.org/observations?taxon_id=${node.id}&without_term_id=17`;
-  chrome.runtime.sendMessage({
+  sendFireAndForget({
     action: 'startCustomBulkMode',
     searchUrl,
     annotationType: 'adult-alive',
     jwt: null,
     sourceTabId: 0,  // 0 is falsy → background won't close this tab
     taxonRank: node.isSelf ? null : node.rank
-  }, () => { void chrome.runtime.lastError; });
+  });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

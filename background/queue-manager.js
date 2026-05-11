@@ -1,13 +1,13 @@
 // Queue storage helpers
 async function getQueues() {
   return new Promise(resolve => {
-    chrome.storage.local.get(['innat_queues'], data => resolve(data.innat_queues || []));
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], data => resolve(data[STORAGE_KEY_QUEUES] || []));
   });
 }
 
 async function setQueues(queues) {
   return new Promise(resolve => {
-    chrome.storage.local.set({ innat_queues: queues }, resolve);
+    chrome.storage.local.set({ [STORAGE_KEY_QUEUES]: queues }, resolve);
   });
 }
 
@@ -91,7 +91,6 @@ async function processQueuedObservations(queueIds, jwt) {
       : new Set();
     const remaining = queue.observations.filter(id => !alreadyDone.has(id));
 
-    console.log(`Processing queue ${queue.id}: ${remaining.length} remaining (${alreadyDone.size} already done) with mode ${queue.annotationType}`);
     await updateQueueStatus(queue.id, 'processing');
 
     const shouldCancel = () => new Promise(resolve =>

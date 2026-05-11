@@ -1,6 +1,4 @@
-// Storage keys (shared globals used by other content files)
-const STORAGE_KEY_CURRENT = 'innat_current_collection';
-const STORAGE_KEY_QUEUES   = 'innat_queues';
+// STORAGE_KEY_CURRENT / STORAGE_KEY_QUEUES come from shared/bulk-helpers.js
 
 // Persist current accumulator to chrome.storage.local
 function saveCurrentCollection() {

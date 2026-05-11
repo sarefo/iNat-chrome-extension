@@ -249,7 +249,6 @@ async function processBulkObservationsViaApi(observations, mode, sourceTabId, jw
     } catch (err) {
       if (err.isAuthError) {
         // Re-fetch JWT once and retry this observation
-        console.log('JWT expired, re-fetching...');
         try {
           jwt = await getJwtFromInatTab();
           result = await annotateObservationViaApi(obsId, mode, jwt);

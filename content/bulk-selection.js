@@ -84,15 +84,11 @@ function updateSelectionUI() {
   }
 
   // Send update to popup if it's open
-  chrome.runtime.sendMessage({
+  sendFireAndForget({
     action: 'bulkModeUpdate',
     selectedCount: selectedObservations.size,
     active: bulkSelectionMode,
     annotationType: bulkAnnotationMode
-  }, () => {
-    if (chrome.runtime.lastError) {
-      // Silently ignore
-    }
   });
 }
 
@@ -175,7 +171,6 @@ function handleObservationMousedown(event, observationElement) {
   if (!observationDiv) return;
 
   const observationId = href.split('/observations/')[1].split('?')[0].split('#')[0];
-  console.log('[iNat] shift+mousedown on obs', observationId);
   showShiftOverlay(observationId, observationDiv);
 }
 

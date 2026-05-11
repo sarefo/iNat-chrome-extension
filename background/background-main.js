@@ -1,5 +1,6 @@
 importScripts(
   '../shared/annotation-defs.js',
+  '../shared/bulk-helpers.js',
   './api-annotator.js',
   './queue-manager.js',
   './obs-fetcher.js'
@@ -49,9 +50,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // progress via chrome.runtime.sendMessage so the page can receive it.
     const isCustomPage = !sender.tab;
     const sourceTabId = isCustomPage ? null : (sender.tab?.id ?? null);
-    const progressSender = isCustomPage
-      ? data => chrome.runtime.sendMessage(data, () => { void chrome.runtime.lastError; })
-      : null;
+    const progressSender = isCustomPage ? sendFireAndForget : null;
     processBulkObservationsViaApi(request.observations, request.mode, sourceTabId, request.jwt, null, progressSender)
       .then(results => sendResponse({ success: true, results }))
       .catch(e => sendResponse({ success: false, error: e.message }));

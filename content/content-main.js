@@ -320,9 +320,9 @@ if (isObservationsListPage()) {
           stripLazyLoading();
 
           // Start scrolling immediately in the background.
-          const lastPage = Math.ceil(preload.totalObservations / 96);
-          const expectedCount = preload.targetPage < lastPage ? 96
-            : preload.totalObservations - (lastPage - 1) * 96;
+          const lastPage = Math.ceil(preload.totalObservations / INAT_PAGE_SIZE);
+          const expectedCount = preload.targetPage < lastPage ? INAT_PAGE_SIZE
+            : preload.totalObservations - (lastPage - 1) * INAT_PAGE_SIZE;
           waitForObservations(() => autoScrollToRevealAllObservations(expectedCount));
 
           // Primary activation: background sends 'activatePreload' message (handled above).
@@ -392,56 +392,22 @@ if (isObservationsListPage()) {
 }
 
 // Ctrl+B: launch bulk mode from keyboard (mirrors popup's startBulkModeFromTab)
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
   if (!(e.key === 'b' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey)) return;
   e.preventDefault();
 
-  const url = window.location.href;
-  const jwt = document.querySelector('meta[name="inaturalist-api-token"]')?.content || null;
-  const annotationType = 'adult-alive';
-  const withoutTermId = 17;
-
-  function launchBulkMode(searchUrl) {
-    chrome.runtime.sendMessage({
-      action: 'startCustomBulkMode',
-      searchUrl,
-      jwt,
-      annotationType,
-      sourceTabId: null
-    }, () => { void chrome.runtime.lastError; });
-  }
-
-  // Taxon page: /taxa/12345-Name
-  const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)/);
-  if (taxaMatch) {
-    launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxaMatch[1]}&without_term_id=${withoutTermId}`);
-    return;
-  }
-
-  // Single observation page: /observations/12345 (no further path segments)
-  const obsMatch = url.match(/inaturalist\.org\/observations\/(\d+)(?:[^/]|$)/);
-  if (obsMatch) {
+  const getTaxonIdFromDom = async () => {
     const link = document.querySelector('a[href*="/taxa/"]');
-    const taxonMatch = link?.href.match(/\/taxa\/(\d+)/);
-    if (taxonMatch) {
-      launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonMatch[1]}&without_term_id=${withoutTermId}`);
-      return;
-    }
-    // Fallback: API fetch
-    fetch(`https://api.inaturalist.org/v1/observations/${obsMatch[1]}`)
-      .then(r => r.json())
-      .then(data => {
-        const taxonId = data?.results?.[0]?.taxon?.id;
-        if (taxonId) launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=${withoutTermId}`);
-      })
-      .catch(() => {});
-    return;
-  }
+    return link?.href.match(/\/taxa\/(\d+)/)?.[1] ?? null;
+  };
+  const searchUrl = await buildBulkSearchUrl(window.location.href, 17, getTaxonIdFromDom);
+  if (!searchUrl) return;
 
-  // Observations list page: add/replace without_term_id filter
-  if (url.includes('inaturalist.org/observations')) {
-    const parsed = new URL(url);
-    parsed.searchParams.set('without_term_id', String(withoutTermId));
-    launchBulkMode(parsed.toString());
-  }
+  sendFireAndForget({
+    action: 'startCustomBulkMode',
+    searchUrl,
+    jwt: document.querySelector('meta[name="inaturalist-api-token"]')?.content || null,
+    annotationType: 'adult-alive',
+    sourceTabId: null
+  });
 });

@@ -38,65 +38,33 @@ document.addEventListener('DOMContentLoaded', function() {
       const tab = tabs[0];
       const url = tab.url || '';
 
-      function launchBulkMode(searchUrl) {
-        chrome.tabs.sendMessage(tab.id, { action: 'getJwt' }, function(jwtResponse) {
-          const jwt = jwtResponse?.jwt || null;
-          chrome.runtime.sendMessage({
-            action: 'startCustomBulkMode',
-            searchUrl,
-            jwt,
-            annotationType,
-            sourceTabId: tab.id
-          }, () => { void chrome.runtime.lastError; });
-          window.close();
+      const getTaxonIdFromDom = () => new Promise(resolve => {
+        chrome.tabs.sendMessage(tab.id, { action: 'getTaxonId' }, response => {
+          void chrome.runtime.lastError;
+          resolve(response?.taxonId || null);
         });
-      }
+      });
 
-      // Taxon page: /taxa/12345-Name
-      const taxaMatch = url.match(/inaturalist\.org\/taxa\/(\d+)/);
-      if (taxaMatch) {
-        launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxaMatch[1]}&without_term_id=${withoutTermId}`);
+      const searchUrl = await buildBulkSearchUrl(url, withoutTermId, getTaxonIdFromDom);
+      if (!searchUrl) {
+        statusDiv.textContent = url.includes('inaturalist.org/observations/')
+          ? 'Could not find taxon for this observation'
+          : 'Must be on an iNaturalist page';
+        statusDiv.style.color = 'red';
         return;
       }
 
-      // Single observation page: /observations/12345
-      const obsMatch = url.match(/inaturalist\.org\/observations\/(\d+)/);
-      if (obsMatch) {
-        chrome.tabs.sendMessage(tab.id, { action: 'getTaxonId' }, async function(response) {
-          const taxonId = response?.taxonId;
-          if (taxonId) {
-            launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${taxonId}&without_term_id=${withoutTermId}`);
-            return;
-          }
-          // Fallback: API fetch
-          try {
-            const resp = await fetch(`https://api.inaturalist.org/v1/observations/${obsMatch[1]}`);
-            const data = await resp.json();
-            const apiTaxonId = data?.results?.[0]?.taxon?.id;
-            if (!apiTaxonId) {
-              statusDiv.textContent = 'Could not find taxon for this observation';
-              statusDiv.style.color = 'red';
-              return;
-            }
-            launchBulkMode(`https://www.inaturalist.org/observations?taxon_id=${apiTaxonId}&without_term_id=${withoutTermId}`);
-          } catch (e) {
-            statusDiv.textContent = 'Error fetching observation taxon';
-            statusDiv.style.color = 'red';
-          }
+      chrome.tabs.sendMessage(tab.id, { action: 'getJwt' }, function(jwtResponse) {
+        void chrome.runtime.lastError;
+        sendFireAndForget({
+          action: 'startCustomBulkMode',
+          searchUrl,
+          jwt: jwtResponse?.jwt || null,
+          annotationType,
+          sourceTabId: tab.id
         });
-        return;
-      }
-
-      // Observations list page: replace or add without_term_id filter
-      if (url.includes('inaturalist.org/observations')) {
-        const parsed = new URL(url);
-        parsed.searchParams.set('without_term_id', String(withoutTermId));
-        launchBulkMode(parsed.toString());
-        return;
-      }
-
-      statusDiv.textContent = 'Must be on an iNaturalist page';
-      statusDiv.style.color = 'red';
+        window.close();
+      });
     });
   }
 
@@ -229,8 +197,8 @@ const processAllButton = document.getElementById('processAllButton');
   }
 
   selectAllQueuesButton.addEventListener('click', () => {
-    chrome.storage.local.get(['innat_queues'], result => {
-      const queues = result.innat_queues || [];
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], result => {
+      const queues = result[STORAGE_KEY_QUEUES] || [];
       const allSelected = queues.every(q => selectedQueueIds.has(q.id));
       if (allSelected) {
         selectedQueueIds.clear();
@@ -243,14 +211,14 @@ const processAllButton = document.getElementById('processAllButton');
   });
 
   clearCompletedButton.addEventListener('click', () => {
-    chrome.storage.local.get(['innat_queues'], result => {
-      const queues = (result.innat_queues || []).filter(q => q.status !== 'completed');
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], result => {
+      const queues = (result[STORAGE_KEY_QUEUES] || []).filter(q => q.status !== 'completed');
       const remaining = new Set(queues.map(q => q.id));
       for (const id of selectedQueueIds) {
         if (!remaining.has(id)) selectedQueueIds.delete(id);
       }
       saveSelectedQueueIds();
-      chrome.storage.local.set({ innat_queues: queues }, () => loadQueues());
+      chrome.storage.local.set({ [STORAGE_KEY_QUEUES]: queues }, () => loadQueues());
     });
   });
 
@@ -266,9 +234,9 @@ const processAllButton = document.getElementById('processAllButton');
     if (changes.innat_pending_queue_ids) {
       pendingQueueIds = new Set(changes.innat_pending_queue_ids.newValue || []);
     }
-    if (changes.innat_queues) {
+    if (changes[STORAGE_KEY_QUEUES]) {
       // Track progress to detect stalls
-      const queues = changes.innat_queues.newValue || [];
+      const queues = changes[STORAGE_KEY_QUEUES].newValue || [];
       const totalProcessed = queues.reduce((sum, q) => sum + (q.processedObservations?.length || 0), 0);
       if (totalProcessed > lastTotalProcessed) {
         lastTotalProcessed = totalProcessed;
@@ -276,14 +244,14 @@ const processAllButton = document.getElementById('processAllButton');
         if (isStalled) { isStalled = false; updateRunningButtonState(); }
       }
     }
-    if (changes.innat_queues || changes.innat_current_collection || changes.innat_pending_queue_ids) {
+    if (changes[STORAGE_KEY_QUEUES] || changes[STORAGE_KEY_CURRENT] || changes.innat_pending_queue_ids) {
       loadQueues();
     }
   });
 
   function loadQueues() {
-    chrome.storage.local.get(['innat_queues'], result => {
-      const queues = result.innat_queues || [];
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], result => {
+      const queues = result[STORAGE_KEY_QUEUES] || [];
       // Prune stale selected IDs for queues that no longer exist
       const existingIds = new Set(queues.map(q => q.id));
       for (const id of selectedQueueIds) {
@@ -405,15 +373,15 @@ const processAllButton = document.getElementById('processAllButton');
   }
 
   function deleteQueue(id) {
-    chrome.storage.local.get(['innat_queues'], result => {
-      const queues = (result.innat_queues || []).filter(q => q.id !== id);
-      chrome.storage.local.set({ innat_queues: queues }, () => loadQueues());
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], result => {
+      const queues = (result[STORAGE_KEY_QUEUES] || []).filter(q => q.id !== id);
+      chrome.storage.local.set({ [STORAGE_KEY_QUEUES]: queues }, () => loadQueues());
     });
   }
 
   processAllButton.addEventListener('click', () => {
-    chrome.storage.local.get(['innat_queues'], result => {
-      const allQueues = result.innat_queues || [];
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], result => {
+      const allQueues = result[STORAGE_KEY_QUEUES] || [];
       allQueues.forEach(q => selectedQueueIds.add(q.id));
       saveSelectedQueueIds();
       _processQueues(allQueues.map(q => q.id), processAllButton);
@@ -473,8 +441,8 @@ const processAllButton = document.getElementById('processAllButton');
   }
 
   function updateEta() {
-    chrome.storage.local.get(['innat_queues'], result => {
-      const queues = result.innat_queues || [];
+    chrome.storage.local.get([STORAGE_KEY_QUEUES], result => {
+      const queues = result[STORAGE_KEY_QUEUES] || [];
       const totalObs = queues.reduce((sum, q) => sum + q.observations.length, 0);
       const totalDone = queues.reduce((sum, q) =>
         q.status === 'completed' ? sum + q.observations.length : sum + (q.processedObservations?.length || 0), 0);

@@ -49,16 +49,16 @@ async function fetchPage(params, page, retries = 3) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function patchStorage(patch) {
-  const stored = await chrome.storage.local.get(['innat_custom_bulk']);
-  const data = stored.innat_custom_bulk || {};
-  await chrome.storage.local.set({ innat_custom_bulk: { ...data, ...patch } });
+  const stored = await chrome.storage.local.get([STORAGE_KEY_CUSTOM_BULK]);
+  const data = stored[STORAGE_KEY_CUSTOM_BULK] || {};
+  await chrome.storage.local.set({ [STORAGE_KEY_CUSTOM_BULK]: { ...data, ...patch } });
 }
 
 async function fetchBatch(params, startPage, endPage, existingObs) {
   let allObs = existingObs;
   for (let start = startPage; start <= endPage; start += PARALLEL_BATCH) {
-    const stored = await chrome.storage.local.get(['innat_custom_bulk']);
-    if (!stored.innat_custom_bulk || stored.innat_custom_bulk.status === 'cancelled') return null;
+    const stored = await chrome.storage.local.get([STORAGE_KEY_CUSTOM_BULK]);
+    if (!stored[STORAGE_KEY_CUSTOM_BULK] || stored[STORAGE_KEY_CUSTOM_BULK].status === 'cancelled') return null;
 
     const batch = [];
     for (let p = start; p < start + PARALLEL_BATCH && p <= endPage; p++) {
@@ -78,7 +78,7 @@ async function fetchBatch(params, startPage, endPage, existingObs) {
 // Opens custom-bulk.html immediately after the first page arrives.
 async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourceTabId, taxonRank) {
   await chrome.storage.local.set({
-    innat_custom_bulk: {
+    [STORAGE_KEY_CUSTOM_BULK]: {
       status: 'loading',
       searchUrl,
       annotationType,
@@ -123,8 +123,8 @@ async function startCustomBulkFetch(searchUrl, annotationType, jwt, sourceTabId,
 
 // Fetch the next batch of API pages, appending to existing observations.
 async function fetchMoreObservations(searchUrl) {
-  const stored = await chrome.storage.local.get(['innat_custom_bulk']);
-  const data = stored.innat_custom_bulk;
+  const stored = await chrome.storage.local.get([STORAGE_KEY_CUSTOM_BULK]);
+  const data = stored[STORAGE_KEY_CUSTOM_BULK];
   if (!data || data.status !== 'partial') return;
 
   const { fetchedApiPages, totalApiPages } = data;

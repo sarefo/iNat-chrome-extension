@@ -58,9 +58,9 @@ function checkAndFixTaxonId() {
 function getExpectedObservationCount() {
   if (!bulkTotalObservations) return 0;
   const currentPage = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
-  const lastPage = Math.ceil(bulkTotalObservations / 96);
-  if (currentPage < lastPage) return 96;
-  return bulkTotalObservations - (lastPage - 1) * 96;
+  const lastPage = Math.ceil(bulkTotalObservations / INAT_PAGE_SIZE);
+  if (currentPage < lastPage) return INAT_PAGE_SIZE;
+  return bulkTotalObservations - (lastPage - 1) * INAT_PAGE_SIZE;
 }
 
 // Function to auto-scroll page to reveal all observations
@@ -113,6 +113,28 @@ function autoScrollToRevealAllObservations(expectedCount = 0) {
 
     performScrollStep();
   });
+}
+
+function mkButton({ id, text, bg, padding = '6px 10px', fontSize = '11px', width, bold = false, disabled = false, title, noWrap = true }) {
+  const btn = document.createElement('button');
+  if (id) btn.id = id;
+  if (title) btn.title = title;
+  btn.textContent = text;
+  if (disabled) btn.disabled = true;
+  btn.style.cssText = `
+    background: ${bg};
+    color: white;
+    border: none;
+    padding: ${padding};
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: ${fontSize};
+    ${bold ? 'font-weight: bold;' : ''}
+    ${width ? `width: ${width};` : ''}
+    ${noWrap ? 'white-space: nowrap;' : ''}
+    ${disabled ? 'opacity: 0.5;' : ''}
+  `;
+  return btn;
 }
 
 // Function to create bulk mode UI
@@ -206,91 +228,12 @@ function createBulkModeUI() {
     flex: 1;
   `;
 
-  const selectAllButton = document.createElement('button');
-  selectAllButton.textContent = 'Select All';
-  selectAllButton.id = 'bulk-select-all-button';
-  selectAllButton.style.cssText = `
-    background: #FF9800;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    white-space: nowrap;
-  `;
-
-  const saveQueueButton = document.createElement('button');
-  saveQueueButton.textContent = 'Save Queue';
-  saveQueueButton.id = 'bulk-save-queue-button';
-  saveQueueButton.style.cssText = `
-    background: #FF5722;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    white-space: nowrap;
-  `;
-
-  const processButton = document.createElement('button');
-  processButton.textContent = 'Process';
-  processButton.id = 'bulk-process-button';
-  processButton.disabled = true;
-  processButton.style.cssText = `
-    background: #2196F3;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    opacity: 0.5;
-  `;
-
-  const cancelButton = document.createElement('button');
-  cancelButton.textContent = '✕';
-  cancelButton.id = 'bulk-cancel-button';
-  cancelButton.style.cssText = `
-    background: #f44336;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-  `;
-
-  const helpButton = document.createElement('button');
-  helpButton.textContent = '? Help';
-  helpButton.id = 'bulk-help-button';
-  helpButton.title = 'How to use bulk mode';
-  helpButton.style.cssText = `
-    background: #607D8B;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: bold;
-    width: 100%;
-  `;
-
-  const prevPageButton = document.createElement('button');
-  prevPageButton.textContent = '← Prev Page';
-  prevPageButton.id = 'bulk-prev-page-button';
-  prevPageButton.style.cssText = `
-    background: #9C27B0;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    white-space: nowrap;
-  `;
+  const selectAllButton = mkButton({ id: 'bulk-select-all-button', text: 'Select All',  bg: '#FF9800' });
+  const saveQueueButton = mkButton({ id: 'bulk-save-queue-button', text: 'Save Queue',  bg: '#FF5722' });
+  const processButton   = mkButton({ id: 'bulk-process-button',    text: 'Process',     bg: '#2196F3', padding: '6px 12px', fontSize: '12px', disabled: true });
+  const cancelButton    = mkButton({ id: 'bulk-cancel-button',     text: '✕',           bg: '#f44336', padding: '6px 12px', fontSize: '12px', noWrap: false });
+  const helpButton      = mkButton({ id: 'bulk-help-button',       text: '? Help',      bg: '#607D8B', padding: '5px 10px', bold: true, width: '100%', title: 'How to use bulk mode' });
+  const prevPageButton  = mkButton({ id: 'bulk-prev-page-button',  text: '← Prev Page', bg: '#9C27B0' });
 
   buttonRow.appendChild(counter);
   buttonRow.appendChild(prevPageButton);
@@ -357,8 +300,8 @@ function createBulkModeUI() {
       }
 
       const taxonId = new URL(window.location.href).searchParams.get('taxon_id') || '';
-      if (total > 96) {
-        const lastPage = Math.ceil(total / 96);
+      if (total > INAT_PAGE_SIZE) {
+        const lastPage = Math.ceil(total / INAT_PAGE_SIZE);
         const url = new URL(window.location.href);
         url.searchParams.set('page', lastPage);
         const data = {
@@ -402,9 +345,7 @@ function createBulkModeUI() {
   saveQueueButton.addEventListener('click', async () => {
     if (selectedObservations.size === 0) return;
     await saveAsNamedQueue();
-    chrome.runtime.sendMessage({ action: 'queueUpdated' }, () => {
-      if (chrome.runtime.lastError) { /* popup may be closed */ }
-    });
+    sendFireAndForget({ action: 'queueUpdated' });
     exitBulkMode();
   });
 
@@ -558,16 +499,10 @@ function exitBulkMode() {
   }
 
   // Close any background preload tab
-  chrome.runtime.sendMessage({ action: 'closePreloadTab' }, () => { void chrome.runtime.lastError; });
+  sendFireAndForget({ action: 'closePreloadTab' });
 
   // Notify popup
-  chrome.runtime.sendMessage({
-    action: 'bulkModeExited'
-  }, () => {
-    if (chrome.runtime.lastError) {
-      // Silently ignore
-    }
-  });
+  sendFireAndForget({ action: 'bulkModeExited' });
 }
 
 // Open the previous page in a background tab so it's ready when the user navigates there
@@ -579,12 +514,12 @@ function triggerPrevPagePreload() {
   const prevUrl = new URL(url.toString());
   prevUrl.searchParams.set('page', currentPage - 1);
   if (bulkTaxonId) prevUrl.searchParams.set('taxon_id', bulkTaxonId);
-  chrome.runtime.sendMessage({
+  sendFireAndForget({
     action: 'openPreloadTab',
     url: prevUrl.toString(),
     totalObservations: bulkTotalObservations,
     targetPage: currentPage - 1
-  }, () => { void chrome.runtime.lastError; });
+  });
 }
 
 // Navigate to the previous page, preserving bulk mode state across the navigation

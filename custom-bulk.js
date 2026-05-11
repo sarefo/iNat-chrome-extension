@@ -26,40 +26,19 @@ let taxonRank = null; // Rank of the taxon, used for exact-rank-only filtering
 // ---------------------------------------------------------------------------
 
 async function getStorageData() {
-  const result = await chrome.storage.local.get(['innat_custom_bulk']);
-  return result.innat_custom_bulk || null;
+  const result = await chrome.storage.local.get([STORAGE_KEY_CUSTOM_BULK]);
+  return result[STORAGE_KEY_CUSTOM_BULK] || null;
 }
 
-function saveSelections() {
-  getStorageData().then(data => {
-    if (!data) return;
-    chrome.storage.local.set({
-      innat_custom_bulk: { ...data, selectedIds: Array.from(selectedIds) }
-    });
-  });
+async function patchBulkData(patch) {
+  const data = await getStorageData();
+  if (!data) return;
+  await chrome.storage.local.set({ [STORAGE_KEY_CUSTOM_BULK]: { ...data, ...patch } });
 }
 
-function saveSexSelections() {
-  getStorageData().then(data => {
-    if (!data) return;
-    chrome.storage.local.set({
-      innat_custom_bulk: {
-        ...data,
-        femaleIds: Array.from(femaleIds),
-        maleIds: Array.from(maleIds)
-      }
-    });
-  });
-}
-
-function saveAnnotationType(type) {
-  getStorageData().then(data => {
-    if (!data) return;
-    chrome.storage.local.set({
-      innat_custom_bulk: { ...data, annotationType: type }
-    });
-  });
-}
+function saveSelections()        { patchBulkData({ selectedIds: Array.from(selectedIds) }); }
+function saveSexSelections()     { patchBulkData({ femaleIds: Array.from(femaleIds), maleIds: Array.from(maleIds) }); }
+function saveAnnotationType(t)   { patchBulkData({ annotationType: t }); }
 
 // ---------------------------------------------------------------------------
 // Computed helpers
@@ -247,10 +226,7 @@ function updateStatusInfo() {
 
 function triggerFetchMore() {
   if (!searchUrl || dataStatus !== 'partial') return;
-  chrome.runtime.sendMessage(
-    { action: 'fetchMoreObservations', searchUrl },
-    () => { void chrome.runtime.lastError; }
-  );
+  sendFireAndForget({ action: 'fetchMoreObservations', searchUrl });
 }
 
 // Modify search URL to include or exclude subtaxa
@@ -547,17 +523,7 @@ shiftOverlayEl.querySelectorAll('.shift-zone[data-type]').forEach(zone => {
           } else if (response && response.success) {
             toast.textContent = `✓ ${label}: obs ${id}`;
             matingIds.add(id);
-            const card = document.querySelector(`.obs-card[data-id="${id}"]`);
-            if (card) {
-              const existing = card.querySelector('.ann-badges');
-              if (existing) card.removeChild(existing);
-              const badges = buildAnnotationBadges(
-                allObservations.find(o => o.id === id)?.annotations,
-                allObservations.find(o => o.id === id)?.qualityGrade,
-                id
-              );
-              if (badges) card.appendChild(badges);
-            }
+            refreshCardBadges(id);
           } else {
             toast.textContent = `✗ Failed: ${response?.error || 'Unknown error'}`;
           }
@@ -645,6 +611,16 @@ document.getElementById('help-overlay').addEventListener('click', e => {
 // Queue
 // ---------------------------------------------------------------------------
 
+function refreshCardBadges(id) {
+  const card = document.querySelector(`.obs-card[data-id="${id}"]`);
+  if (!card) return;
+  const existing = card.querySelector('.ann-badges');
+  if (existing) card.removeChild(existing);
+  const obs = allObservations.find(o => o.id === id);
+  const badges = buildAnnotationBadges(obs?.annotations, obs?.qualityGrade, id);
+  if (badges) card.appendChild(badges);
+}
+
 function addAnnotationsToCard(id, mode) {
   const pairs = INAT_ANNOTATION_CONFIGS[mode];
   if (!pairs) return;
@@ -656,13 +632,7 @@ function addAnnotationsToCard(id, mode) {
       obs.annotations.push({ attrId: a, valId: v });
     }
   }
-  const card = document.querySelector(`.obs-card[data-id="${id}"]`);
-  if (card) {
-    const existing = card.querySelector('.ann-badges');
-    if (existing) card.removeChild(existing);
-    const badges = buildAnnotationBadges(obs.annotations, obs.qualityGrade, id);
-    if (badges) card.appendChild(badges);
-  }
+  refreshCardBadges(id);
 }
 
 // Existing annotation badge display (keyed by "attrId_valId")
@@ -741,8 +711,8 @@ async function addToQueueSexMode() {
     } catch { /* ignore */ }
   }
 
-  const stored = await chrome.storage.local.get(['innat_queues']);
-  const queues = stored.innat_queues || [];
+  const stored = await chrome.storage.local.get([STORAGE_KEY_QUEUES]);
+  const queues = stored[STORAGE_KEY_QUEUES] || [];
   let totalAdded = 0;
   const now = Date.now();
 
@@ -772,8 +742,8 @@ async function addToQueueSexMode() {
     totalAdded += maleObs.length;
   }
 
-  await chrome.storage.local.set({ innat_queues: queues });
-  chrome.runtime.sendMessage({ action: 'queueUpdated' }, () => { void chrome.runtime.lastError; });
+  await chrome.storage.local.set({ [STORAGE_KEY_QUEUES]: queues });
+  sendFireAndForget({ action: 'queueUpdated' });
 
   femaleIds.clear();
   maleIds.clear();
@@ -816,13 +786,13 @@ async function addToQueue() {
     status: 'pending'
   };
 
-  const stored = await chrome.storage.local.get(['innat_queues']);
-  const queues = stored.innat_queues || [];
+  const stored = await chrome.storage.local.get([STORAGE_KEY_QUEUES]);
+  const queues = stored[STORAGE_KEY_QUEUES] || [];
   queues.push(queue);
-  await chrome.storage.local.set({ innat_queues: queues });
+  await chrome.storage.local.set({ [STORAGE_KEY_QUEUES]: queues });
 
   // Notify the popup so it refreshes the queue list
-  chrome.runtime.sendMessage({ action: 'queueUpdated' }, () => { void chrome.runtime.lastError; });
+  sendFireAndForget({ action: 'queueUpdated' });
 
   // Clear the selection
   selectedIds.clear();
@@ -843,8 +813,8 @@ async function addToQueue() {
 // ---------------------------------------------------------------------------
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !changes.innat_custom_bulk) return;
-  const data = changes.innat_custom_bulk.newValue;
+  if (area !== 'local' || !changes[STORAGE_KEY_CUSTOM_BULK]) return;
+  const data = changes[STORAGE_KEY_CUSTOM_BULK].newValue;
   if (!data) return;
 
   const prevStatus = dataStatus;
@@ -954,7 +924,7 @@ document.getElementById('btn-select-all').addEventListener('click', () => {
 document.getElementById('btn-process').addEventListener('click', () => tryAddToQueue(false));
 
 document.getElementById('btn-cancel').addEventListener('click', () => {
-  chrome.storage.local.remove('innat_custom_bulk');
+  chrome.storage.local.remove(STORAGE_KEY_CUSTOM_BULK);
   window.close();
 });
 
@@ -967,25 +937,14 @@ if (btnSubtaxa) {
     // Reload observations with modified search URL
     if (searchUrl) {
       const newUrl = modifySearchUrlForSubtaxa(searchUrl, includeSubtaxa);
-      await chrome.storage.local.get(['innat_custom_bulk'], (result) => {
-        const data = result.innat_custom_bulk;
-        if (data) {
-          chrome.storage.local.set({
-            innat_custom_bulk: {
-              ...data,
-              searchUrl: newUrl,
-              status: 'loading',
-              observations: [],
-              fetchedApiPages: 0,
-              totalApiPages: 0
-            }
-          });
-          chrome.runtime.sendMessage(
-            { action: 'reloadObservations', searchUrl: newUrl },
-            () => { void chrome.runtime.lastError; }
-          );
-        }
+      await patchBulkData({
+        searchUrl: newUrl,
+        status: 'loading',
+        observations: [],
+        fetchedApiPages: 0,
+        totalApiPages: 0
       });
+      sendFireAndForget({ action: 'reloadObservations', searchUrl: newUrl });
     }
   });
 }
@@ -1102,49 +1061,25 @@ function applyZoneToFocusedCards(zoneEl, isCtrl) {
   const toast = document.getElementById('queue-toast');
   const centered = positionToastOnCard(toast, kbPrimaryId);
   const toastDelay = centered ? 600 : 3000;
+  const isMating = type === 'mating' && !isCtrl;
 
-  if (isCtrl) {
-    toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
-    toast.classList.add('active');
-    ids.forEach(id => {
-      ctrlDeselectCard(id);
-      chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type });
+  toast.textContent = isMating ? `⏳ Tagging ${count}× mating…` : `⏳ Annotating ${count}×: ${label}…`;
+  toast.classList.add('active');
+
+  ids.forEach(id => {
+    if (isCtrl) ctrlDeselectCard(id);
+    if (isMating) {
+      sendFireAndForget({ action: 'postObservationField', obsId: id, fieldId: 6637, value: 'yes' });
+      matingIds.add(id);
+      refreshCardBadges(id);
+    } else {
+      sendFireAndForget({ action: 'quickAnnotateObs', obsId: id, mode: type });
       addAnnotationsToCard(id, type);
-    });
-    toast.textContent = `✓ ${count}× ${label}`;
-    setTimeout(() => toast.classList.remove('active'), toastDelay);
-  } else if (type === 'mating') {
-    toast.textContent = `⏳ Tagging ${count}× mating…`;
-    toast.classList.add('active');
-    ids.forEach(id => {
-      chrome.runtime.sendMessage({ action: 'postObservationField', obsId: id, fieldId: 6637, value: 'yes' }, response => {
-        if (response?.success) {
-          matingIds.add(id);
-          const card = document.querySelector(`.obs-card[data-id="${id}"]`);
-          if (card) {
-            const existing = card.querySelector('.ann-badges');
-            if (existing) card.removeChild(existing);
-            const badges = buildAnnotationBadges(
-              allObservations.find(o => o.id === id)?.annotations,
-              allObservations.find(o => o.id === id)?.qualityGrade, id
-            );
-            if (badges) card.appendChild(badges);
-          }
-        }
-      });
-    });
-    toast.textContent = `✓ ${count}× ❤️ Mating`;
-    setTimeout(() => toast.classList.remove('active'), toastDelay);
-  } else {
-    toast.textContent = `⏳ Annotating ${count}×: ${label}…`;
-    toast.classList.add('active');
-    ids.forEach(id => {
-      chrome.runtime.sendMessage({ action: 'quickAnnotateObs', obsId: id, mode: type });
-      addAnnotationsToCard(id, type);
-    });
-    toast.textContent = `✓ ${count}× ${label}`;
-    setTimeout(() => toast.classList.remove('active'), toastDelay);
-  }
+    }
+  });
+
+  toast.textContent = isMating ? `✓ ${count}× ❤️ Mating` : `✓ ${count}× ${label}`;
+  setTimeout(() => toast.classList.remove('active'), toastDelay);
 
   if (isCtrl) hideCtrlOverlay(); else hideShiftOverlay();
   clearKbFocus();
