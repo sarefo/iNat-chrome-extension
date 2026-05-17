@@ -785,6 +785,7 @@ async function addToQueue() {
     annotationType,
     observations,
     searchUrl: data?.searchUrl || null,
+    taxonName: data?.taxonName || null,
     created: Date.now(),
     status: 'pending'
   };

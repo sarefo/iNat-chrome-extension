@@ -747,7 +747,8 @@ function openBulkForTaxon(node) {
     annotationType: 'adult-alive',
     jwt: null,
     sourceTabId: 0,  // 0 is falsy → background won't close this tab
-    taxonRank: node.isSelf ? null : node.rank
+    taxonRank: node.isSelf ? null : node.rank,
+    taxonName: node.name || null
   });
 }
 

@@ -328,17 +328,17 @@ const processAllButton = document.getElementById('processAllButton');
       try { taxonIdForQueue = queue.searchUrl ? new URL(queue.searchUrl).searchParams.get('taxon_id') : null; } catch {}
       const nameEl = document.createElement('span');
       nameEl.className = 'queue-item-name';
-      if (taxonIdForQueue) {
-        const nameText = document.createTextNode(queue.name + statusSuffix + ' ');
+      const separatorIdx = taxonIdForQueue ? queue.name.indexOf(' · ') : -1;
+      if (separatorIdx !== -1) {
         const idLink = document.createElement('a');
-        idLink.textContent = `#${taxonIdForQueue}`;
+        idLink.textContent = queue.name.slice(0, separatorIdx);
         idLink.href = `https://www.inaturalist.org/taxa/${taxonIdForQueue}`;
         idLink.target = '_blank';
         idLink.rel = 'noopener';
-        idLink.title = queue.name;
+        if (queue.taxonName) idLink.title = queue.taxonName;
         idLink.className = 'queue-taxon-link';
-        nameEl.appendChild(nameText);
         nameEl.appendChild(idLink);
+        nameEl.appendChild(document.createTextNode(queue.name.slice(separatorIdx) + statusSuffix));
       } else {
         nameEl.textContent = queue.name + statusSuffix;
       }
