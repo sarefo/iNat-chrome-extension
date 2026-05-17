@@ -2,12 +2,14 @@
 // Loaded as a classic script — no imports/exports.
 
 // chrome.storage.local keys
-const STORAGE_KEY_CURRENT     = 'innat_current_collection';
-const STORAGE_KEY_QUEUES      = 'innat_queues';
-const STORAGE_KEY_CUSTOM_BULK = 'innat_custom_bulk';
+// var (not const) so these land on the global object and are visible to other
+// scripts loaded via importScripts() in the service worker's shared scope.
+var STORAGE_KEY_CURRENT     = 'innat_current_collection';
+var STORAGE_KEY_QUEUES      = 'innat_queues';
+var STORAGE_KEY_CUSTOM_BULK = 'innat_custom_bulk';
 
 // Observations per page on the iNat /observations grid view (used for scroll/preload math).
-const INAT_PAGE_SIZE = 96;
+var INAT_PAGE_SIZE = 96;
 
 // Silently drop the noisy "no receiver" lastError that fires when nobody is listening.
 function sendFireAndForget(msg) {

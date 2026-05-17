@@ -2,8 +2,10 @@
 // Loaded as a classic script in all contexts (manifest content_scripts, importScripts in
 // background, <script> in popup/custom-bulk/taxonomy). No imports/exports.
 
+// var (not const) so these land on the global object and are visible to other
+// scripts loaded via importScripts() in the service worker's shared scope.
 // Each entry: list of { a: controlled_attribute_id, v: controlled_value_id }
-const INAT_ANNOTATION_CONFIGS = {
+var INAT_ANNOTATION_CONFIGS = {
   'adult-alive':             [{a:1,v:2},{a:17,v:18},{a:22,v:24}],
   'adult-cannot':            [{a:1,v:2},{a:17,v:20},{a:22,v:24}],
   'adult-dead':              [{a:1,v:2},{a:17,v:19},{a:22,v:24}],
@@ -28,11 +30,11 @@ const INAT_ANNOTATION_CONFIGS = {
 };
 
 // Modes containing a juvenile Life Stage annotation that needs ancestry-based resolution
-const INAT_JUVENILE_MODES = new Set(['juvenile', 'juvenile-cannot', 'juvenile-dead']);
+var INAT_JUVENILE_MODES = new Set(['juvenile', 'juvenile-cannot', 'juvenile-dead']);
 
 // Display labels per mode. Includes synthetic modes ('sex-split', 'mating') used by UI
 // flows that don't map 1:1 to a single annotation config.
-const INAT_ANNOTATION_LABELS = {
+var INAT_ANNOTATION_LABELS = {
   'adult-alive':             '🦆 Adult Alive',
   'adult-cannot':            '❓ Adult Cannot Be Determined',
   'adult-dead':              '💀 Adult Dead',

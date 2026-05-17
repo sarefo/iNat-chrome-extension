@@ -1,6 +1,6 @@
 // INAT_ANNOTATION_CONFIGS and INAT_JUVENILE_MODES come from shared/annotation-defs.js
-const API_BASE = 'https://api.inaturalist.org/v1';
-const RATE_LIMIT_MS = 150;
+var API_BASE = 'https://api.inaturalist.org/v1';
+var RATE_LIMIT_MS = 150;
 
 // Taxon IDs for orders that use Larva (holometabolous insects + Amphibia)
 const LARVA_TAXON_IDS = new Set([

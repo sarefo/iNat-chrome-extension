@@ -317,8 +317,6 @@ const processAllButton = document.getElementById('processAllButton');
           }
         });
 
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'queue-item-name';
       let statusSuffix = '';
       if (queue.status === 'processing') {
         const done = queue.processedObservations?.length || 0;
@@ -326,16 +324,16 @@ const processAllButton = document.getElementById('processAllButton');
       } else if (queue.status !== 'pending') {
         statusSuffix = ` [${queue.status}]`;
       }
-      nameSpan.textContent = queue.name + statusSuffix;
       let taxonIdForQueue = null;
       try { taxonIdForQueue = queue.searchUrl ? new URL(queue.searchUrl).searchParams.get('taxon_id') : null; } catch {}
-      nameSpan.title = taxonIdForQueue ? `taxon_id: ${taxonIdForQueue}` : queue.name;
+      const nameEl = taxonIdForQueue ? document.createElement('a') : document.createElement('span');
+      nameEl.className = 'queue-item-name';
+      nameEl.textContent = queue.name + statusSuffix;
+      nameEl.title = taxonIdForQueue ? `taxon_id: ${taxonIdForQueue}` : queue.name;
       if (taxonIdForQueue) {
-        nameSpan.style.cursor = 'pointer';
-        nameSpan.addEventListener('click', e => {
-          e.stopPropagation();
-          chrome.tabs.create({ url: `https://www.inaturalist.org/taxa/${taxonIdForQueue}` });
-        });
+        nameEl.href = `https://www.inaturalist.org/taxa/${taxonIdForQueue}`;
+        nameEl.target = '_blank';
+        nameEl.rel = 'noopener';
       }
 
       const deleteBtn = document.createElement('button');
@@ -349,7 +347,7 @@ const processAllButton = document.getElementById('processAllButton');
       });
 
       item.appendChild(dot);
-      item.appendChild(nameSpan);
+      item.appendChild(nameEl);
       item.appendChild(deleteBtn);
       queueList.appendChild(item);
     });
@@ -411,6 +409,7 @@ const processAllButton = document.getElementById('processAllButton');
     // Get JWT from the current tab before handing off to background
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
       chrome.tabs.sendMessage(tabs[0].id, { action: 'getJwt' }, jwtResponse => {
+        void chrome.runtime.lastError;
         const jwt = jwtResponse?.jwt || null;
         chrome.runtime.sendMessage({ action: 'processQueues', queueIds: ids, jwt }, response => {
           isRunning = false;

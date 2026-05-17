@@ -1,4 +1,3 @@
-const API_BASE = 'https://api.inaturalist.org/v1';
 const PER_PAGE = 200;
 const PARALLEL_BATCH = 3;
 const BATCH_DELAY_MS = 1000;

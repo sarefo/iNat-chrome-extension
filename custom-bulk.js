@@ -723,6 +723,7 @@ async function addToQueueSexMode() {
       name: `${taxonPrefix}♀ Female (${femaleObs.length})`,
       annotationType: 'sex-female',
       observations: femaleObs,
+      searchUrl: data?.searchUrl || null,
       created: now,
       status: 'pending'
     });
@@ -736,6 +737,7 @@ async function addToQueueSexMode() {
       name: `${taxonPrefix}♂ Male (${maleObs.length})`,
       annotationType: 'sex-male',
       observations: maleObs,
+      searchUrl: data?.searchUrl || null,
       created: now + 1,
       status: 'pending'
     });
@@ -782,6 +784,7 @@ async function addToQueue() {
     name,
     annotationType,
     observations,
+    searchUrl: data?.searchUrl || null,
     created: Date.now(),
     status: 'pending'
   };
