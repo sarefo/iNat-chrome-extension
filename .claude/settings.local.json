@@ -45,7 +45,8 @@
       "Bash(node --check popup.js)",
       "Bash(node --check custom-bulk.js)",
       "Bash(node --check taxonomy.js)",
-      "Bash(node --check content/bulk-ui.js)"
+      "Bash(node --check content/bulk-ui.js)",
+      "Bash(git stash *)"
     ],
     "deny": []
   }
