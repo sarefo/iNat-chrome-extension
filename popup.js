@@ -326,14 +326,21 @@ const processAllButton = document.getElementById('processAllButton');
       }
       let taxonIdForQueue = null;
       try { taxonIdForQueue = queue.searchUrl ? new URL(queue.searchUrl).searchParams.get('taxon_id') : null; } catch {}
-      const nameEl = taxonIdForQueue ? document.createElement('a') : document.createElement('span');
+      const nameEl = document.createElement('span');
       nameEl.className = 'queue-item-name';
-      nameEl.textContent = queue.name + statusSuffix;
-      nameEl.title = taxonIdForQueue ? `taxon_id: ${taxonIdForQueue}` : queue.name;
       if (taxonIdForQueue) {
-        nameEl.href = `https://www.inaturalist.org/taxa/${taxonIdForQueue}`;
-        nameEl.target = '_blank';
-        nameEl.rel = 'noopener';
+        const nameText = document.createTextNode(queue.name + statusSuffix + ' ');
+        const idLink = document.createElement('a');
+        idLink.textContent = `#${taxonIdForQueue}`;
+        idLink.href = `https://www.inaturalist.org/taxa/${taxonIdForQueue}`;
+        idLink.target = '_blank';
+        idLink.rel = 'noopener';
+        idLink.title = queue.name;
+        idLink.className = 'queue-taxon-link';
+        nameEl.appendChild(nameText);
+        nameEl.appendChild(idLink);
+      } else {
+        nameEl.textContent = queue.name + statusSuffix;
       }
 
       const deleteBtn = document.createElement('button');
